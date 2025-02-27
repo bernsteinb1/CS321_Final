@@ -15,6 +15,8 @@ class Bird:
         self.distance_from_pipe = 0
         self.color = (249, 220, 53)
         self.radius = 25
+        # prob not great for bird to keep track of score, but it works
+        self.score = 0
         # need to track total distance bird has travelled
 
     def draw(self, window):
@@ -36,6 +38,7 @@ class Pipe:
         self.width = 85
         self.top_rect_height = self.gap
         self.bot_rect_height = height - self.gap + GAP_SIZE   
+        self.cleared = False
 
     def randomize_gap(self, height):
         self.gap = random.randrange(0, height - GAP_SIZE)
@@ -47,6 +50,7 @@ class Pipe:
         pygame.draw.rect(window, self.color, (self.left, self.top_rect_top, self.width, self.top_rect_height))
         pygame.draw.rect(window, self.color, (self.left, self.bot_rect_top, self.width, self.bot_rect_height))
 
+# returns False if the bird hits the bottom of the screen, True otherwise
 def update_bird(bird):
     bird.velocity -= GRAVITY
     if bird.velocity <= 0:
@@ -68,11 +72,13 @@ def update_pipes(pipe1, pipe2, height, width):
     if pipe1.left < -pipe1.width:
         pipe1.randomize_gap(height)
         pipe1.left = pipe2.left + width
+        pipe1.cleared = False
 
     pipe2.left -= PIPE_SCROLL_SPEED
     if pipe2.left < -pipe2.width:
         pipe2.randomize_gap(height)
         pipe2.left = pipe1.left + width
+        pipe2.cleared = False
 
 # returns true if the bird collides with either of the pipes
 def check_collision(bird, pipe1, pipe2):
@@ -95,16 +101,27 @@ def check_collision(bird, pipe1, pipe2):
     
     return False
 
+# checks to see if the bird is halfway through a pipe. if it is, increases score by 1
+def check_pipe_clear(bird, pipe1, pipe2):
+    if bird.x_coord > pipe1.left + pipe1.width / 2:
+        if pipe1.cleared == False:
+            pipe1.cleared = True
+            bird.score += 1
+            print("Score:", bird.score)
+
+    if bird.x_coord > pipe2.left + pipe2.width / 2:
+        if pipe2.cleared == False:
+            pipe2.cleared = True
+            bird.score += 1
+            print("Score:", bird.score)
+
 # ------------- game code -------------
 # setup window and basic game items
 background_color = (5, 213, 250) 
 window = pygame.display.set_mode((480, 640)) 
 w, h = pygame.display.get_surface().get_size()
-
 pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
-
 clock = pygame.time.Clock()
-  
 running = True
 
 # setup bird object
@@ -134,13 +151,19 @@ while running:
                 bird.flap()
             elif event.key == pygame.K_q:
                 # not sure if quit is appropriate to use, cant use running bc update_bird also modifies it
+                print("Player quit game")
                 pygame.quit()
 
-    running = update_bird(bird)
+    if not update_bird(bird):
+        print("Game over: hit bottom")
+        running = update_bird(bird)
 
     update_pipes(pipe1, pipe2, h, w)
 
+    check_pipe_clear(bird, pipe1, pipe2)
+
     if check_collision(bird, pipe1, pipe2):
+        print("Game over: hit pipe")
         running = False
 
     window.fill(background_color)
