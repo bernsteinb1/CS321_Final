@@ -96,6 +96,6 @@ while running:
     pipe.left -= PIPE_SCROLL_SPEED
 
     window.fill(background_color)
-    bird.draw(window)
     pipe.draw(window, h)
+    bird.draw(window)
     pygame.display.update()
