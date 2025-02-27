@@ -50,16 +50,23 @@ while running:
         if event.type == pygame.QUIT: 
             running = False
 
+        # flap with space, quit with q
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 bird.flap()
+            elif event.key == pygame.K_q:
+                running = False
 
     bird.velocity -= gravity
     if bird.velocity <= 0:
         bird.velocity = 0
 
     bird.y_coord += gravity - bird.velocity
-    
+
+    if bird.y_coord < 0 + bird.radius:
+        bird.y_coord = bird.radius
+    print(bird.y_coord)
+
     if bird.y_coord >= h - bird.radius:
         running = False
 
