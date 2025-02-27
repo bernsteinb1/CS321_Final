@@ -3,8 +3,7 @@ import pygame
 # make bird class
 class Bird:
     def __init__(self):
-        self.x_velocity = 0
-        self.y_velocity = 0
+        self.velocity = 0
         self.x_coord = 0
         self.y_coord = 0
         self.distance_from_pipe = 0
@@ -12,29 +11,35 @@ class Bird:
         self.radius = 25
         # i forgot one of the variables we talked about
 
+    def flap(self):
+        bird.velocity += 35
+
 # make obstacle class constructor 
 
 # ------------- game code -------------
 # setup window and basic game items
-background_colour = (5, 213, 250) 
+background_color = (5, 213, 250) 
 window = pygame.display.set_mode((480, 640)) 
 
 pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
   
-window.fill(background_colour) 
+window.fill(background_color) 
   
 pygame.display.update() 
+
+clock = pygame.time.Clock()
+
+gravity = 5
   
-# Variable to keep our game loop running 
 running = True
 
 # setup bird object
 bird = Bird()
 
-# set screen position 
+# set screen position of bird
 w, h = pygame.display.get_surface().get_size()
-bird.xcoord = w / 2 - 50
-bird.ycoord = h / 2
+bird.x_coord = w / 2 - 50
+bird.y_coord = h / 2
 
 # game loop 
 while running: 
@@ -46,10 +51,23 @@ while running:
             running = False
 
         if event.type == pygame.KEYDOWN:
-            print("keypress!")
+            if event.key == pygame.K_SPACE:
+                bird.flap()
 
-    # keys = pygame.key.get_pressed() 
-    # if keys[pygame.K_SPACE]:
-    #     print("space bar!")
-    pygame.draw.circle(window, bird.color, (bird.xcoord, bird.ycoord), bird.radius)
+    bird.velocity -= gravity
+    if bird.velocity <= 0:
+        bird.velocity = 0
+
+    bird.y_coord += gravity - bird.velocity
+    
+    if bird.y_coord >= h - bird.radius:
+        running = False
+
+    window.fill(background_color)
+    pygame.draw.circle(window, bird.color, (bird.x_coord, bird.y_coord), bird.radius)
     pygame.display.update()
+
+    # set FPS to 60
+    clock.tick(60)  
+    # https://stackoverflow.com/questions/35617246/setting-a-fixed-fps-in-pygame-python-3
+    # might want to look at this later
