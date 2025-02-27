@@ -50,7 +50,7 @@ class Bird:
 class Pipe:
     def __init__(self, x_coord):
         # a pipe is 2 rectangles split to create a gap, but treated as 1 pair
-        self.gap = random.randrange(0, WINDOW_HEIGHT - GAP_SIZE)
+        self.gap = random.randrange(5, WINDOW_HEIGHT - GAP_SIZE - 5) # 5 px buffer to ensure that gaps are not right at edges of screen
         self.color = (75, 174, 78)
         # Rect class parameters
         self.x_coord = x_coord
@@ -60,12 +60,6 @@ class Pipe:
         self.top_rect_height = self.gap
         self.bot_rect_height = WINDOW_HEIGHT - self.gap + GAP_SIZE   
         self.cleared = False
-
-    def randomize_gap(self, height):
-        self.gap = random.randrange(0, height - GAP_SIZE)
-        self.bot_rect_top = self.gap + GAP_SIZE
-        self.top_rect_height = self.gap
-        self.bot_rect_height = height - self.gap + GAP_SIZE
 
     def draw(self, window):
         pygame.draw.rect(window, self.color, (self.x_coord, self.top_rect_top, self.width, self.top_rect_height))
