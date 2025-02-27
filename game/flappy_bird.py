@@ -46,6 +46,33 @@ class Pipe:
         pygame.draw.rect(window, self.color, (self.left, self.top_rect_top, self.width, self.top_rect_height))
         pygame.draw.rect(window, self.color, (self.left, self.bot_rect_top, self.width, self.bot_rect_height))
 
+def update_bird(bird):
+    bird.velocity -= GRAVITY
+    if bird.velocity <= 0:
+        bird.velocity = 0
+
+    bird.y_coord += GRAVITY - bird.velocity
+
+    if bird.y_coord < 0 + bird.radius:
+        bird.y_coord = bird.radius
+
+    if bird.y_coord >= h - bird.radius:
+        return False
+    
+    return True
+
+def update_pipes(pipe1, pipe2, height, width):
+    # pipes are always 1 screen width apart
+    pipe1.left -= PIPE_SCROLL_SPEED
+    if pipe1.left < -pipe1.width:
+        pipe1.randomize_gap(height)
+        pipe1.left = pipe2.left + width
+
+    pipe2.left -= PIPE_SCROLL_SPEED
+    if pipe2.left < -pipe2.width:
+        pipe2.randomize_gap(height)
+        pipe2.left = pipe1.left + width
+
 # ------------- game code -------------
 # setup window and basic game items
 background_color = (5, 213, 250) 
@@ -89,30 +116,9 @@ while running:
             elif event.key == pygame.K_q:
                 running = False
 
-    # update bird position
-    bird.velocity -= GRAVITY
-    if bird.velocity <= 0:
-        bird.velocity = 0
+    running = update_bird(bird)
 
-    bird.y_coord += GRAVITY - bird.velocity
-
-    if bird.y_coord < 0 + bird.radius:
-        bird.y_coord = bird.radius
-
-    if bird.y_coord >= h - bird.radius:
-        running = False
-
-    # update pipe position
-    # pipes are always 1 screen width apart
-    pipe1.left -= PIPE_SCROLL_SPEED
-    if pipe1.left < -pipe1.width:
-        pipe1.randomize_gap(h)
-        pipe1.left = pipe2.left + w
-
-    pipe2.left -= PIPE_SCROLL_SPEED
-    if pipe2.left < -pipe2.width:
-        pipe2.randomize_gap(h)
-        pipe2.left = pipe1.left + w
+    update_pipes(pipe1, pipe2, h, w)
 
     window.fill(background_color)
     pipe1.draw(window)
