@@ -69,12 +69,12 @@ class Pipe:
     def update(self):
         self.x_coord -= PIPE_SCROLL_SPEED
 
-# returns true if the bird collides with either of the pipes
+# returns true if the bird collides with the given pipe
 def check_collision(bird, pipe):
     # create a rectangle from the bird's circle
     bird_rect = pygame.Rect(bird.x_coord - bird.radius, bird.y_coord - bird.radius, bird.radius * 2, bird.radius * 2)
 
-    # check if bird collides with pipe 1
+    # check if bird collides with the pipe 
     if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.top_rect_top, pipe.width, pipe.top_rect_height)):
         return True
     
@@ -83,7 +83,7 @@ def check_collision(bird, pipe):
     
     return False
 
-# checks to see if the bird at the end of a pipe. if it is, increases score by 1
+# checks to see if the bird is at the end of a pipe. if it is, increases score by 1
 def check_pipe_clear(bird, pipe):
     if bird.x_coord > pipe.x_coord + pipe.width:
         if pipe.cleared == False:
