@@ -6,6 +6,7 @@ GAP_SIZE = 180
 PIPE_SCROLL_SPEED = 2
 FLAP_STRENGTH = 20
 MAX_TERMINAL_VELOCITY = -8
+PIPE_SPAWN_DISTANCE = 350
 WINDOW_WIDTH = 480
 WINDOW_HEIGHT = 640
 
@@ -68,52 +69,28 @@ class Pipe:
         pygame.draw.rect(window, self.color, (self.x_coord, self.top_rect_top, self.width, self.top_rect_height))
         pygame.draw.rect(window, self.color, (self.x_coord, self.bot_rect_top, self.width, self.bot_rect_height))
 
-def update_pipes(pipe1, pipe2):
-    # pipes are always 1 screen width apart
-    pipe1.x_coord -= PIPE_SCROLL_SPEED
-    if pipe1.x_coord < -pipe1.width:
-        pipe1.randomize_gap(WINDOW_HEIGHT)
-        pipe1.x_coord = pipe2.x_coord + WINDOW_WIDTH
-        pipe1.cleared = False
-
-    pipe2.x_coord -= PIPE_SCROLL_SPEED
-    if pipe2.x_coord < -pipe2.width:
-        pipe2.randomize_gap(WINDOW_HEIGHT)
-        pipe2.x_coord = pipe1.x_coord + WINDOW_WIDTH
-        pipe2.cleared = False
+    def update(self):
+        self.x_coord -= PIPE_SCROLL_SPEED
 
 # returns true if the bird collides with either of the pipes
-def check_collision(bird, pipe1, pipe2):
+def check_collision(bird, pipe):
     # create a rectangle from the bird's circle
     bird_rect = pygame.Rect(bird.x_coord - bird.radius, bird.y_coord - bird.radius, bird.radius * 2, bird.radius * 2)
 
     # check if bird collides with pipe 1
-    if bird_rect.colliderect(pygame.Rect(pipe1.x_coord, pipe1.top_rect_top, pipe1.width, pipe1.top_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.top_rect_top, pipe.width, pipe.top_rect_height)):
         return True
     
-    if bird_rect.colliderect(pygame.Rect(pipe1.x_coord, pipe1.bot_rect_top, pipe1.width, pipe1.bot_rect_height)):
-        return True
-    
-    # check if bird collides with pipe2
-    if bird_rect.colliderect(pygame.Rect(pipe2.x_coord, pipe2.top_rect_top, pipe2.width, pipe2.top_rect_height)):
-        return True
-    
-    if bird_rect.colliderect(pygame.Rect(pipe2.x_coord, pipe2.bot_rect_top, pipe2.width, pipe2.bot_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.bot_rect_top, pipe.width, pipe.bot_rect_height)):
         return True
     
     return False
 
-# checks to see if the bird is halfway through a pipe. if it is, increases score by 1
-def check_pipe_clear(bird, pipe1, pipe2):
-    if bird.x_coord > pipe1.x_coord + pipe1.width:
-        if pipe1.cleared == False:
-            pipe1.cleared = True
-            bird.score += 1
-            print("Score:", bird.score)
-
-    if bird.x_coord > pipe2.x_coord + pipe2.width:
-        if pipe2.cleared == False:
-            pipe2.cleared = True
+# checks to see if the bird at the end of a pipe. if it is, increases score by 1
+def check_pipe_clear(bird, pipe):
+    if bird.x_coord > pipe.x_coord + pipe.width:
+        if pipe.cleared == False:
+            pipe.cleared = True
             bird.score += 1
             print("Score:", bird.score)
 
@@ -132,9 +109,9 @@ bird = Bird()
 bird.x_coord = WINDOW_WIDTH / 2 - 50
 bird.y_coord = WINDOW_HEIGHT / 2
 
-# initialize 2 pipe objects, these will respawn as they reach end of screen
-pipe1 = Pipe(WINDOW_WIDTH)
-pipe2 = Pipe(WINDOW_WIDTH * 2)
+# create the 1st pipe
+pipes = []
+pipes.append(Pipe(WINDOW_WIDTH))
 
 # game loop 
 while running: 
@@ -159,17 +136,25 @@ while running:
         print("Game over: hit bottom")
         running = False
 
-    update_pipes(pipe1, pipe2)
+    for pipe in pipes:
+        pipe.update()
+    
+    closest_pipe = pipes[0]
+    if closest_pipe.x_coord < -closest_pipe.width:
+        pipes.remove(closest_pipe)
+        pipes.append(Pipe(WINDOW_WIDTH)) # ensure there is always a pipe on the screen
 
-    check_pipe_clear(bird, pipe1, pipe2)
+    closest_pipe = pipes[0] # first pipe in array is the pipe closest to bird
 
-    if check_collision(bird, pipe1, pipe2):
+    check_pipe_clear(bird, closest_pipe)
+
+    if check_collision(bird, closest_pipe):
         print("Game over: hit pipe")
         running = False
 
     window.fill(background_color)
-    pipe1.draw(window)
-    pipe2.draw(window)
+    for pipe in pipes:
+        pipe.draw(window)
     bird.draw(window)
     pygame.display.update()
 
