@@ -14,7 +14,7 @@ class Bird:
         self.distance_from_pipe = 0
         self.color = (249, 220, 53)
         self.radius = 25
-        # i forgot one of the variables we talked about
+        # need to track total distance bird has travelled
 
     def draw(self, window):
         pygame.draw.circle(window, self.color, (self.x_coord, self.y_coord), self.radius)
@@ -25,17 +25,26 @@ class Bird:
 # # make obstacle class constructor 
 class Pipe:
     def __init__(self, left, height):
-        # self.gap = some random choice for gap location
+        # a pipe is 2 rectangles split to create a gap, but treated as 1 pair
+        self.gap = random.randrange(0, height - GAP_SIZE)
         self.color = (75, 174, 78)
         # Rect class parameters
         self.left = left
-        self.top = 0
+        self.top_rect_top = 0
+        self.bot_rect_top = self.gap + GAP_SIZE
         self.width = 85
-        self.height = height
+        self.top_rect_height = self.gap
+        self.bot_rect_height = height - self.gap + GAP_SIZE   
 
-    def draw(self, window, window_height):
-        pygame.draw.rect(window, self.color, (self.left, self.top, self.width, window_height))
-        # still need to cut out the gap
+    def randomize_gap(self, height):
+        self.gap = random.randrange(0, height - GAP_SIZE)
+        self.bot_rect_top = self.gap + GAP_SIZE
+        self.top_rect_height = self.gap
+        self.bot_rect_height = height - self.gap + GAP_SIZE
+
+    def draw(self, window):
+        pygame.draw.rect(window, self.color, (self.left, self.top_rect_top, self.width, self.top_rect_height))
+        pygame.draw.rect(window, self.color, (self.left, self.bot_rect_top, self.width, self.bot_rect_height))
 
 # ------------- game code -------------
 # setup window and basic game items
@@ -56,8 +65,9 @@ w, h = pygame.display.get_surface().get_size()
 bird.x_coord = w / 2 - 50
 bird.y_coord = h / 2
 
-# initialize a single pipe object, will need to create more within while loop
-pipe = Pipe(w, h)
+# initialize 2 pipe objects, these will respawn as they reach end of screen
+pipe1 = Pipe(w, h)
+pipe2 = Pipe(w * 2, h)
 
 # game loop 
 while running: 
@@ -93,9 +103,19 @@ while running:
         running = False
 
     # update pipe position
-    pipe.left -= PIPE_SCROLL_SPEED
+    # pipes are always 1 screen width apart
+    pipe1.left -= PIPE_SCROLL_SPEED
+    if pipe1.left < -pipe1.width:
+        pipe1.randomize_gap(h)
+        pipe1.left = pipe2.left + w
+
+    pipe2.left -= PIPE_SCROLL_SPEED
+    if pipe2.left < -pipe2.width:
+        pipe2.randomize_gap(h)
+        pipe2.left = pipe1.left + w
 
     window.fill(background_color)
-    pipe.draw(window, h)
+    pipe1.draw(window)
+    pipe2.draw(window)
     bird.draw(window)
     pygame.display.update()
