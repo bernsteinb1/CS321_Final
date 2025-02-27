@@ -6,6 +6,7 @@ GRAVITY = 2
 GAP_SIZE = 180
 PIPE_SCROLL_SPEED = 2
 FLAP_STRENGTH = 20
+BIRD_RADIUS = 25
 MAX_TERMINAL_VELOCITY = -8
 DISTANCE_BETWEEN_PIPES = 250
 PIPE_WIDTH = 85
@@ -21,7 +22,7 @@ class Bird:
         # i dont use dist from pipe, bryce wants it for NN
         self.distance_from_pipe = 0
         self.color = (249, 220, 53)
-        self.radius = 25
+        self.radius = BIRD_RADIUS
         # prob not great for bird to keep track of score, but it works
         self.score = 0
 
