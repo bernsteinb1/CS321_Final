@@ -1,12 +1,14 @@
 import pygame
 import random
+import math
 
 GRAVITY = 2
 GAP_SIZE = 180
 PIPE_SCROLL_SPEED = 2
 FLAP_STRENGTH = 20
 MAX_TERMINAL_VELOCITY = -8
-PIPE_SPAWN_DISTANCE = 350
+DISTANCE_BETWEEN_PIPES = 250
+PIPE_WIDTH = 85
 WINDOW_WIDTH = 480
 WINDOW_HEIGHT = 640
 
@@ -54,7 +56,7 @@ class Pipe:
         self.x_coord = x_coord
         self.top_rect_top = 0
         self.bot_rect_top = self.gap + GAP_SIZE
-        self.width = 85
+        self.width = PIPE_WIDTH
         self.top_rect_height = self.gap
         self.bot_rect_height = WINDOW_HEIGHT - self.gap + GAP_SIZE   
         self.cleared = False
@@ -109,9 +111,10 @@ bird = Bird()
 bird.x_coord = WINDOW_WIDTH / 2 - 50
 bird.y_coord = WINDOW_HEIGHT / 2
 
-# create the 1st pipe
-pipes = []
-pipes.append(Pipe(WINDOW_WIDTH))
+# spawn initial pipes
+num_pipes = math.ceil(WINDOW_WIDTH / (DISTANCE_BETWEEN_PIPES + PIPE_WIDTH)) + 1
+offset = DISTANCE_BETWEEN_PIPES + PIPE_WIDTH
+pipes = [Pipe(i * offset + WINDOW_WIDTH) for i in range(num_pipes)]
 
 # game loop 
 while running: 
@@ -119,7 +122,6 @@ while running:
     clock.tick(60)  
     
     for event in pygame.event.get(): 
-      
         if event.type == pygame.QUIT: 
             running = False
 
@@ -128,9 +130,8 @@ while running:
             if event.key == pygame.K_SPACE:
                 bird.flap()
             elif event.key == pygame.K_q:
-                # not sure if quit is appropriate to use, cant use running bc update_bird also modifies it
                 print("Player quit game")
-                pygame.quit()
+                running = False
 
     if not bird.update():
         print("Game over: hit bottom")
@@ -139,12 +140,11 @@ while running:
     for pipe in pipes:
         pipe.update()
     
-    closest_pipe = pipes[0]
+    closest_pipe = pipes[0] # first pipe in array is the pipe closest to bird
     if closest_pipe.x_coord < -closest_pipe.width:
         pipes.remove(closest_pipe)
-        pipes.append(Pipe(WINDOW_WIDTH)) # ensure there is always a pipe on the screen
-
-    closest_pipe = pipes[0] # first pipe in array is the pipe closest to bird
+        pipes.append(Pipe(pipes[-1].x_coord + offset)) # replace any deleted pipe
+        closest_pipe = pipes[0]
 
     check_pipe_clear(bird, closest_pipe)
 
