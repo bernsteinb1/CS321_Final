@@ -1,10 +1,13 @@
 import pygame
 import random
 
-GRAVITY = 5
-GAP_SIZE = 140
+GRAVITY = 2
+GAP_SIZE = 180
 PIPE_SCROLL_SPEED = 2
-FLAP_STRENGTH = 35
+FLAP_STRENGTH = 20
+MAX_TERMINAL_VELOCITY = -8
+WINDOW_WIDTH = 480
+WINDOW_HEIGHT = 640
 
 # make bird class
 class Bird:
@@ -12,32 +15,47 @@ class Bird:
         self.velocity = 0
         self.x_coord = 0
         self.y_coord = 0
+        # i dont use dist from pipe, bryce wants it for NN
         self.distance_from_pipe = 0
         self.color = (249, 220, 53)
         self.radius = 25
         # prob not great for bird to keep track of score, but it works
         self.score = 0
-        # need to track total distance bird has travelled
 
     def draw(self, window):
         pygame.draw.circle(window, self.color, (self.x_coord, self.y_coord), self.radius)
 
+    # each flap increase the bird's velocity, which is used to set y coordinate
     def flap(self):
-        bird.velocity += FLAP_STRENGTH
+        self.velocity = FLAP_STRENGTH
 
-# # make obstacle class constructor 
+    # returns False if the bird hits the bottom of the screen, True otherwise
+    def update(self):
+        self.velocity -= GRAVITY
+        self.velocity = max(self.velocity, MAX_TERMINAL_VELOCITY)
+
+        self.y_coord -= self.velocity
+
+        if self.y_coord < 0 + self.radius:
+            self.y_coord = self.radius
+
+        if self.y_coord >= WINDOW_HEIGHT - self.radius:
+            return False
+        
+        return True
+
 class Pipe:
-    def __init__(self, left, height):
+    def __init__(self, x_coord):
         # a pipe is 2 rectangles split to create a gap, but treated as 1 pair
-        self.gap = random.randrange(0, height - GAP_SIZE)
+        self.gap = random.randrange(0, WINDOW_HEIGHT - GAP_SIZE)
         self.color = (75, 174, 78)
         # Rect class parameters
-        self.left = left
+        self.x_coord = x_coord
         self.top_rect_top = 0
         self.bot_rect_top = self.gap + GAP_SIZE
         self.width = 85
         self.top_rect_height = self.gap
-        self.bot_rect_height = height - self.gap + GAP_SIZE   
+        self.bot_rect_height = WINDOW_HEIGHT - self.gap + GAP_SIZE   
         self.cleared = False
 
     def randomize_gap(self, height):
@@ -47,37 +65,21 @@ class Pipe:
         self.bot_rect_height = height - self.gap + GAP_SIZE
 
     def draw(self, window):
-        pygame.draw.rect(window, self.color, (self.left, self.top_rect_top, self.width, self.top_rect_height))
-        pygame.draw.rect(window, self.color, (self.left, self.bot_rect_top, self.width, self.bot_rect_height))
+        pygame.draw.rect(window, self.color, (self.x_coord, self.top_rect_top, self.width, self.top_rect_height))
+        pygame.draw.rect(window, self.color, (self.x_coord, self.bot_rect_top, self.width, self.bot_rect_height))
 
-# returns False if the bird hits the bottom of the screen, True otherwise
-def update_bird(bird):
-    bird.velocity -= GRAVITY
-    if bird.velocity <= 0:
-        bird.velocity = 0
-
-    bird.y_coord += GRAVITY - bird.velocity
-
-    if bird.y_coord < 0 + bird.radius:
-        bird.y_coord = bird.radius
-
-    if bird.y_coord >= h - bird.radius:
-        return False
-    
-    return True
-
-def update_pipes(pipe1, pipe2, height, width):
+def update_pipes(pipe1, pipe2):
     # pipes are always 1 screen width apart
-    pipe1.left -= PIPE_SCROLL_SPEED
-    if pipe1.left < -pipe1.width:
-        pipe1.randomize_gap(height)
-        pipe1.left = pipe2.left + width
+    pipe1.x_coord -= PIPE_SCROLL_SPEED
+    if pipe1.x_coord < -pipe1.width:
+        pipe1.randomize_gap(WINDOW_HEIGHT)
+        pipe1.x_coord = pipe2.x_coord + WINDOW_WIDTH
         pipe1.cleared = False
 
-    pipe2.left -= PIPE_SCROLL_SPEED
-    if pipe2.left < -pipe2.width:
-        pipe2.randomize_gap(height)
-        pipe2.left = pipe1.left + width
+    pipe2.x_coord -= PIPE_SCROLL_SPEED
+    if pipe2.x_coord < -pipe2.width:
+        pipe2.randomize_gap(WINDOW_HEIGHT)
+        pipe2.x_coord = pipe1.x_coord + WINDOW_WIDTH
         pipe2.cleared = False
 
 # returns true if the bird collides with either of the pipes
@@ -86,30 +88,30 @@ def check_collision(bird, pipe1, pipe2):
     bird_rect = pygame.Rect(bird.x_coord - bird.radius, bird.y_coord - bird.radius, bird.radius * 2, bird.radius * 2)
 
     # check if bird collides with pipe 1
-    if bird_rect.colliderect(pygame.Rect(pipe1.left, pipe1.top_rect_top, pipe1.width, pipe1.top_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe1.x_coord, pipe1.top_rect_top, pipe1.width, pipe1.top_rect_height)):
         return True
     
-    if bird_rect.colliderect(pygame.Rect(pipe1.left, pipe1.bot_rect_top, pipe1.width, pipe1.bot_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe1.x_coord, pipe1.bot_rect_top, pipe1.width, pipe1.bot_rect_height)):
         return True
     
     # check if bird collides with pipe2
-    if bird_rect.colliderect(pygame.Rect(pipe2.left, pipe2.top_rect_top, pipe2.width, pipe2.top_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe2.x_coord, pipe2.top_rect_top, pipe2.width, pipe2.top_rect_height)):
         return True
     
-    if bird_rect.colliderect(pygame.Rect(pipe2.left, pipe2.bot_rect_top, pipe2.width, pipe2.bot_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe2.x_coord, pipe2.bot_rect_top, pipe2.width, pipe2.bot_rect_height)):
         return True
     
     return False
 
 # checks to see if the bird is halfway through a pipe. if it is, increases score by 1
 def check_pipe_clear(bird, pipe1, pipe2):
-    if bird.x_coord > pipe1.left + pipe1.width / 2:
+    if bird.x_coord > pipe1.x_coord + pipe1.width:
         if pipe1.cleared == False:
             pipe1.cleared = True
             bird.score += 1
             print("Score:", bird.score)
 
-    if bird.x_coord > pipe2.left + pipe2.width / 2:
+    if bird.x_coord > pipe2.x_coord + pipe2.width:
         if pipe2.cleared == False:
             pipe2.cleared = True
             bird.score += 1
@@ -118,8 +120,7 @@ def check_pipe_clear(bird, pipe1, pipe2):
 # ------------- game code -------------
 # setup window and basic game items
 background_color = (5, 213, 250) 
-window = pygame.display.set_mode((480, 640)) 
-w, h = pygame.display.get_surface().get_size()
+window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT)) 
 pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
 clock = pygame.time.Clock()
 running = True
@@ -128,12 +129,12 @@ running = True
 bird = Bird()
 
 # set initial screen position of bird
-bird.x_coord = w / 2 - 50
-bird.y_coord = h / 2
+bird.x_coord = WINDOW_WIDTH / 2 - 50
+bird.y_coord = WINDOW_HEIGHT / 2
 
 # initialize 2 pipe objects, these will respawn as they reach end of screen
-pipe1 = Pipe(w, h)
-pipe2 = Pipe(w * 2, h)
+pipe1 = Pipe(WINDOW_WIDTH)
+pipe2 = Pipe(WINDOW_WIDTH * 2)
 
 # game loop 
 while running: 
@@ -154,11 +155,11 @@ while running:
                 print("Player quit game")
                 pygame.quit()
 
-    if not update_bird(bird):
+    if not bird.update():
         print("Game over: hit bottom")
-        running = update_bird(bird)
+        running = False
 
-    update_pipes(pipe1, pipe2, h, w)
+    update_pipes(pipe1, pipe2)
 
     check_pipe_clear(bird, pipe1, pipe2)
 
@@ -171,3 +172,5 @@ while running:
     pipe2.draw(window)
     bird.draw(window)
     pygame.display.update()
+
+print("Final score:", bird.score)
