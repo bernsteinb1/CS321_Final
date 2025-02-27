@@ -2,7 +2,7 @@ import pygame
 import random
 
 GRAVITY = 5
-GAP_SIZE = 120
+GAP_SIZE = 160
 PIPE_SCROLL_SPEED = 1.5
 
 # make bird class
