@@ -2,8 +2,9 @@ import pygame
 import random
 
 GRAVITY = 5
-GAP_SIZE = 160
-PIPE_SCROLL_SPEED = 1.5
+GAP_SIZE = 140
+PIPE_SCROLL_SPEED = 2
+FLAP_STRENGTH = 35
 
 # make bird class
 class Bird:
@@ -20,7 +21,7 @@ class Bird:
         pygame.draw.circle(window, self.color, (self.x_coord, self.y_coord), self.radius)
 
     def flap(self):
-        bird.velocity += 35
+        bird.velocity += FLAP_STRENGTH
 
 # # make obstacle class constructor 
 class Pipe:
@@ -73,10 +74,32 @@ def update_pipes(pipe1, pipe2, height, width):
         pipe2.randomize_gap(height)
         pipe2.left = pipe1.left + width
 
+# returns true if the bird collides with either of the pipes
+def check_collision(bird, pipe1, pipe2):
+    # create a rectangle from the bird's circle
+    bird_rect = pygame.Rect(bird.x_coord - bird.radius, bird.y_coord - bird.radius, bird.radius * 2, bird.radius * 2)
+
+    # check if bird collides with pipe 1
+    if bird_rect.colliderect(pygame.Rect(pipe1.left, pipe1.top_rect_top, pipe1.width, pipe1.top_rect_height)):
+        return True
+    
+    if bird_rect.colliderect(pygame.Rect(pipe1.left, pipe1.bot_rect_top, pipe1.width, pipe1.bot_rect_height)):
+        return True
+    
+    # check if bird collides with pipe2
+    if bird_rect.colliderect(pygame.Rect(pipe2.left, pipe2.top_rect_top, pipe2.width, pipe2.top_rect_height)):
+        return True
+    
+    if bird_rect.colliderect(pygame.Rect(pipe2.left, pipe2.bot_rect_top, pipe2.width, pipe2.bot_rect_height)):
+        return True
+    
+    return False
+
 # ------------- game code -------------
 # setup window and basic game items
 background_color = (5, 213, 250) 
 window = pygame.display.set_mode((480, 640)) 
+w, h = pygame.display.get_surface().get_size()
 
 pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
 
@@ -88,7 +111,6 @@ running = True
 bird = Bird()
 
 # set initial screen position of bird
-w, h = pygame.display.get_surface().get_size()
 bird.x_coord = w / 2 - 50
 bird.y_coord = h / 2
 
@@ -100,10 +122,7 @@ pipe2 = Pipe(w * 2, h)
 while running: 
     # set FPS to 60
     clock.tick(60)  
-    # https://stackoverflow.com/questions/35617246/setting-a-fixed-fps-in-pygame-python-3
-    # might want to look at this ^ later
     
-# for loop through the event queue   
     for event in pygame.event.get(): 
       
         if event.type == pygame.QUIT: 
@@ -114,11 +133,15 @@ while running:
             if event.key == pygame.K_SPACE:
                 bird.flap()
             elif event.key == pygame.K_q:
-                running = False
+                # not sure if quit is appropriate to use, cant use running bc update_bird also modifies it
+                pygame.quit()
 
     running = update_bird(bird)
 
     update_pipes(pipe1, pipe2, h, w)
+
+    if check_collision(bird, pipe1, pipe2):
+        running = False
 
     window.fill(background_color)
     pipe1.draw(window)
