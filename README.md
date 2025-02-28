@@ -6,4 +6,4 @@ An AI Agent to play the iconic Flappy Bird game.
 - pygame
 
 # How to run code:
-- ADD COMMANDS TO RUN
+- `python3 ai_flappy_bird.py`
