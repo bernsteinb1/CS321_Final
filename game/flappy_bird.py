@@ -2,32 +2,31 @@ import pygame
 import random
 import math
 
-GRAVITY = 2
-GAP_SIZE = 180
-PIPE_SCROLL_SPEED = 2
-FLAP_STRENGTH = 20
-BIRD_RADIUS = 25
-MAX_TERMINAL_VELOCITY = -8
-DISTANCE_BETWEEN_PIPES = 250
-PIPE_WIDTH = 85
-WINDOW_WIDTH = 480
-WINDOW_HEIGHT = 640
+GRAVITY = 2  # how fast bird accelerates downward
+GAP_SIZE = 180  # distance between the top and the bottom of a pipe
+PIPE_SCROLL_SPEED = 2  # how fast pipes move towards bird
+FLAP_STRENGTH = 20  # how much vertical velocity a flap adds
+BIRD_RADIUS = 25  # bird radius
+TERMINAL_VELOCITY = -8  # top downward velocity
+DISTANCE_BETWEEN_PIPES = 250  # distance between pipes
+PIPE_WIDTH = 85  # width of pipes
+PIPE_BUFFER = 20  # minimum distance fo pipe from top or bottom of screen
+WINDOW_WIDTH = 480  # width of window
+WINDOW_HEIGHT = 640  # height of window
+
+BIRD_COLOR = (249, 220, 53)
+PIPE_COLOR = (75, 174, 78)
+BACKGROUND_COLOR = (5, 213, 250) 
 
 # make bird class
 class Bird:
     def __init__(self):
         self.velocity = 0
-        self.x_coord = 0
-        self.y_coord = 0
-        # i dont use dist from pipe, bryce wants it for NN
-        self.distance_from_pipe = 0
-        self.color = (249, 220, 53)
-        self.radius = BIRD_RADIUS
-        # prob not great for bird to keep track of score, but it works
-        self.score = 0
+        self.x_coord = WINDOW_WIDTH / 2 - 50
+        self.y_coord = WINDOW_HEIGHT / 2
 
     def draw(self, window):
-        pygame.draw.circle(window, self.color, (self.x_coord, self.y_coord), self.radius)
+        pygame.draw.circle(window, BIRD_COLOR, (self.x_coord, self.y_coord), BIRD_RADIUS)
 
     # each flap increase the bird's velocity, which is used to set y coordinate
     def flap(self):
@@ -35,36 +34,24 @@ class Bird:
 
     # returns False if the bird hits the bottom of the screen, True otherwise
     def update(self):
-        self.velocity -= GRAVITY
-        self.velocity = max(self.velocity, MAX_TERMINAL_VELOCITY)
-
-        self.y_coord -= self.velocity
-
-        if self.y_coord < 0 + self.radius:
-            self.y_coord = self.radius
-
-        if self.y_coord >= WINDOW_HEIGHT - self.radius:
-            return False
-        
-        return True
+        self.velocity = max(self.velocity - GRAVITY, TERMINAL_VELOCITY)  # don't let bird exceed terminal velocity
+        self.y_coord = max(self.y_coord - self.velocity, BIRD_RADIUS)  # don't let bird hit top of screen
+        return self.y_coord < WINDOW_HEIGHT - BIRD_RADIUS  # evaluates true if bird not touching bottom.
 
 class Pipe:
     def __init__(self, x_coord):
         # a pipe is 2 rectangles split to create a gap, but treated as 1 pair
-        self.gap = random.randrange(5, WINDOW_HEIGHT - GAP_SIZE - 5) # 5 px buffer to ensure that gaps are not right at edges of screen
-        self.color = (75, 174, 78)
+        self.gap = random.randrange(PIPE_BUFFER, WINDOW_HEIGHT - GAP_SIZE - PIPE_BUFFER) # PIPE_BUFFER ensures that gaps are not right at edges of screen
         # Rect class parameters
         self.x_coord = x_coord
         self.top_rect_top = 0
         self.bot_rect_top = self.gap + GAP_SIZE
-        self.width = PIPE_WIDTH
         self.top_rect_height = self.gap
         self.bot_rect_height = WINDOW_HEIGHT - self.gap + GAP_SIZE   
-        self.cleared = False
 
     def draw(self, window):
-        pygame.draw.rect(window, self.color, (self.x_coord, self.top_rect_top, self.width, self.top_rect_height))
-        pygame.draw.rect(window, self.color, (self.x_coord, self.bot_rect_top, self.width, self.bot_rect_height))
+        pygame.draw.rect(window, PIPE_COLOR, (self.x_coord, self.top_rect_top, PIPE_WIDTH, self.top_rect_height))
+        pygame.draw.rect(window, PIPE_COLOR, (self.x_coord, self.bot_rect_top, PIPE_WIDTH, self.bot_rect_height))
 
     def update(self):
         self.x_coord -= PIPE_SCROLL_SPEED
@@ -72,44 +59,36 @@ class Pipe:
 # returns true if the bird collides with the given pipe
 def check_collision(bird, pipe):
     # create a rectangle from the bird's circle
-    bird_rect = pygame.Rect(bird.x_coord - bird.radius, bird.y_coord - bird.radius, bird.radius * 2, bird.radius * 2)
+    bird_rect = pygame.Rect(bird.x_coord - BIRD_RADIUS, bird.y_coord - BIRD_RADIUS, BIRD_RADIUS * 2, BIRD_RADIUS * 2)
 
     # check if bird collides with the pipe 
-    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.top_rect_top, pipe.width, pipe.top_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.top_rect_top, PIPE_WIDTH, pipe.top_rect_height)):
         return True
-    
-    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.bot_rect_top, pipe.width, pipe.bot_rect_height)):
+    if bird_rect.colliderect(pygame.Rect(pipe.x_coord, pipe.bot_rect_top, PIPE_WIDTH, pipe.bot_rect_height)):
         return True
-    
     return False
 
 # checks to see if the bird is at the end of a pipe. if it is, increases score by 1
 def check_pipe_clear(bird, pipe):
-    if bird.x_coord > pipe.x_coord + pipe.width:
-        if pipe.cleared == False:
-            pipe.cleared = True
-            bird.score += 1
-            print("Score:", bird.score)
+    return bird.x_coord > pipe.x_coord + PIPE_WIDTH
 
 # ------------- game code -------------
 # setup window and basic game items
-background_color = (5, 213, 250) 
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT)) 
 pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
 clock = pygame.time.Clock()
 running = True
+score = 0
 
 # setup bird object
 bird = Bird()
-
-# set initial screen position of bird
-bird.x_coord = WINDOW_WIDTH / 2 - 50
-bird.y_coord = WINDOW_HEIGHT / 2
 
 # spawn initial pipes
 num_pipes = math.ceil(WINDOW_WIDTH / (DISTANCE_BETWEEN_PIPES + PIPE_WIDTH)) + 1
 offset = DISTANCE_BETWEEN_PIPES + PIPE_WIDTH
 pipes = [Pipe(i * offset + WINDOW_WIDTH) for i in range(num_pipes)]
+
+next_pipe = pipes[0]
 
 # game loop 
 while running: 
@@ -135,22 +114,23 @@ while running:
     for pipe in pipes:
         pipe.update()
     
-    closest_pipe = pipes[0] # first pipe in array is the pipe closest to bird
-    if closest_pipe.x_coord < -closest_pipe.width:
-        pipes.remove(closest_pipe)
+    if pipes[0].x_coord < -PIPE_WIDTH:
+        pipes.pop(0)
         pipes.append(Pipe(pipes[-1].x_coord + offset)) # replace any deleted pipe
-        closest_pipe = pipes[0]
 
-    check_pipe_clear(bird, closest_pipe)
+    if check_pipe_clear(bird, next_pipe):
+        print("Score:", score)
+        next_pipe = pipes[pipes.index(next_pipe) + 1]
+        score += 1
 
-    if check_collision(bird, closest_pipe):
+    if check_collision(bird, next_pipe):
         print("Game over: hit pipe")
         running = False
 
-    window.fill(background_color)
+    window.fill(BACKGROUND_COLOR)
     for pipe in pipes:
         pipe.draw(window)
     bird.draw(window)
     pygame.display.update()
-
-print("Final score:", bird.score)
+    
+print("Final score:", score)

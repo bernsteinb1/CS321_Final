@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Union
+import time
 
 INPUT_NODES = 4
 HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
@@ -13,6 +14,7 @@ class NeuralNetwork:
         previous_layer_nodes = INPUT_NODES
         self.weights = []
         self.biases = []
+        # initialize weights and biases randomly between -1 and 1 with a uniform distribution
         for i in range(len(HIDDEN_LAYER_NODES)):
             self.weights.append(np.random.uniform(-1, 1, size=(previous_layer_nodes, HIDDEN_LAYER_NODES[i])))
             self.biases.append(np.random.uniform(-1, 1, size=HIDDEN_LAYER_NODES[i]))
@@ -20,15 +22,16 @@ class NeuralNetwork:
         self.weights.append(np.random.uniform(-1, 1, size=(previous_layer_nodes, OUTPUT_NODES)))
         self.biases.append(np.random.uniform(-1, 1, size=OUTPUT_NODES))
 
-    def run(self, data: list[int]) -> Union[int, list[int]]:
+    def run(self, data: list[float]) -> Union[float, list[float]]:
         """Runs data through the neural network and returns the value in the output node(s)
 
         Args:
-            data (list[int]): single dimension array containing each input as its own cell
+            data (list[float]): single dimension array containing each input as its own cell
 
         Returns:
-            Union[int, list[int]]: int or array of ints representing the output value for each cell.
+            Union[float, list[float]]: float or array of floats representing the output value for each cell.
         """
+        # run data through each layer applying ReLU at all cells except for the final cell
         for i in range(len(self.weights)):
             data = np.matmul(data, self.weights[i]) + self.biases[i]
             if i != len(self.weights) - 1:
@@ -37,6 +40,9 @@ class NeuralNetwork:
 
 
 if __name__ == '__main__':
+    networks = [NeuralNetwork() for _ in range(1000)]
+    start = time.time()
     for i in range(1000):
-        nn = NeuralNetwork()
-        print(nn.run([0, 0, 0, 0]))
+        print(networks[i].run([0, 0, 0, 0]))
+    print()
+    print(time.time() - start)
