@@ -2,12 +2,12 @@ import pygame
 import random
 import math
 
-GRAVITY = 2  # how fast bird accelerates downward
+GRAVITY = .8  # how fast bird accelerates downward
 GAP_SIZE = 180  # distance between the top and the bottom of a pipe
 PIPE_SCROLL_SPEED = 2  # how fast pipes move towards bird
-FLAP_STRENGTH = 20  # how much vertical velocity a flap adds
+FLAP_STRENGTH = 13  # how much vertical velocity a flap adds
 BIRD_RADIUS = 25  # bird radius
-TERMINAL_VELOCITY = -8  # top downward velocity
+TERMINAL_VELOCITY = -10  # top downward velocity
 DISTANCE_BETWEEN_PIPES = 250  # distance between pipes
 PIPE_WIDTH = 85  # width of pipes
 PIPE_BUFFER = 20  # minimum distance fo pipe from top or bottom of screen
