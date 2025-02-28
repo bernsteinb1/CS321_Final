@@ -10,7 +10,7 @@ BIRD_RADIUS = 25  # bird radius
 TERMINAL_VELOCITY = -10  # top downward velocity
 DISTANCE_BETWEEN_PIPES = 250  # distance between pipes
 PIPE_WIDTH = 85  # width of pipes
-PIPE_BUFFER = 20  # minimum distance fo pipe from top or bottom of screen
+PIPE_BUFFER = 20  # minimum distance to pipe from top or bottom of screen
 WINDOW_WIDTH = 480  # width of window
 WINDOW_HEIGHT = 640  # height of window
 
