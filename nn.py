@@ -2,7 +2,7 @@ import numpy as np
 from typing import Union
 import time
 
-INPUT_NODES = 4
+INPUT_NODES = 1
 HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
 OUTPUT_NODES = 1
 

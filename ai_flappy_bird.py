@@ -106,8 +106,8 @@ def main():
                 sys.exit()
         
         for i in range(len(ai_agents)):
-            inp = [birds[i].y_coord, birds[i].velocity, next_pipe.x_coord - birds[i].x_coord, birds[i].y_coord - next_pipe.bot_rect_top]  # input distance from ground, velocity, horizontal distance from next pipe, and vertical distance from next pipe bottom 
-            # inp = [birds[i].y_coord - next_pipe.bot_rect_top]
+            # inp = [birds[i].y_coord, birds[i].velocity, next_pipe.x_coord - birds[i].x_coord, birds[i].y_coord - next_pipe.bot_rect_top]  # input distance from ground, velocity, horizontal distance from next pipe, and vertical distance from next pipe bottom 
+            inp = [birds[i].y_coord - next_pipe.bot_rect_top] 
             action = ai_agents[i].run(inp)
             if action > 0:
                 birds[i].flap()
