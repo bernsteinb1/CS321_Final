@@ -22,7 +22,6 @@ BIRD_COLOR = (249, 220, 53)
 PIPE_COLOR = (75, 174, 78)
 BACKGROUND_COLOR = (5, 213, 250) 
 
-# make bird class
 class Bird:
     def __init__(self):
         self.velocity = 0
@@ -32,12 +31,12 @@ class Bird:
     def draw(self, window):
         pygame.draw.circle(window, BIRD_COLOR, (self.x_coord, self.y_coord), BIRD_RADIUS, width=5)
 
-    # each flap increase the bird's velocity, which is used to set y coordinate
     def flap(self):
+        """each flap increase the bird's velocity, which is used to set y coordinate"""
         self.velocity = FLAP_STRENGTH
 
-    # returns False if the bird hits the bottom of the screen, True otherwise
     def update(self):
+        """returns False if the bird hits the bottom of the screen, True otherwise"""
         self.velocity = max(self.velocity - GRAVITY, TERMINAL_VELOCITY)  # don't let bird exceed terminal velocity
         self.y_coord = max(self.y_coord - self.velocity, BIRD_RADIUS)  # don't let bird hit top of screen
         return self.y_coord < WINDOW_HEIGHT - BIRD_RADIUS  # evaluates true if bird not touching bottom.
@@ -60,8 +59,8 @@ class Pipe:
     def update(self):
         self.x_coord -= PIPE_SCROLL_SPEED
 
-# returns true if the bird collides with the given pipe
 def check_collision(bird, pipe):
+    """returns true if the bird collides with the given pipe"""
     # create a rectangle from the bird's circle
     bird_rect = pygame.Rect(bird.x_coord - BIRD_RADIUS, bird.y_coord - BIRD_RADIUS, BIRD_RADIUS * 2, BIRD_RADIUS * 2)
 
@@ -72,8 +71,8 @@ def check_collision(bird, pipe):
         return True
     return False
 
-# checks to see if the bird is at the end of a pipe. if it is, increases score by 1
 def check_pipe_clear(bird, pipe):
+    """checks to see if the bird is at the end of a pipe."""
     return bird.x_coord > pipe.x_coord + PIPE_WIDTH
 
 
@@ -137,8 +136,6 @@ def main():
         for bird in birds:
             bird.draw(window)
         pygame.display.update()
-        
-    print("Final score:", score)
-    
+            
 if __name__ == '__main__':
     main()
