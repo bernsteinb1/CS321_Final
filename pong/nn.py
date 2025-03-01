@@ -4,7 +4,7 @@ import time
 
 INPUT_NODES = 1
 HIDDEN_LAYER_NODES = [2]  # use empty list for no hidden layers
-OUTPUT_NODES = 1
+OUTPUT_NODES = 3
 
 class NeuralNetwork:
     def __init__(self):
@@ -36,13 +36,16 @@ class NeuralNetwork:
             data = np.matmul(data, self.weights[i]) + self.biases[i]
             if i != len(self.weights) - 1:
                 data = np.maximum(data, np.zeros_like(data))
-        return data[0] if len(data) == 1 else data
+        if len(data) == 1:
+            return data[0]
+        data = np.exp(data)
+        return data / np.sum(data)
 
 
 if __name__ == '__main__':
     networks = [NeuralNetwork() for _ in range(1000)]
     start = time.time()
     for i in range(1000):
-        print(networks[i].run([0, 0, 0, 0]))
+        print(networks[i].run([5]))
     print()
     print(time.time() - start)
