@@ -3,7 +3,7 @@ from typing import Union
 import time
 
 INPUT_NODES = 1
-HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
+HIDDEN_LAYER_NODES = [2]  # use empty list for no hidden layers
 OUTPUT_NODES = 1
 
 class NeuralNetwork:
