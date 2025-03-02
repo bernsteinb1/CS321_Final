@@ -3,8 +3,8 @@ from typing import Union
 import time
 
 INPUT_NODES = 6
-HIDDEN_LAYER_NODES = [2]  # use empty list for no hidden layers
-OUTPUT_NODES = 3
+HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
+OUTPUT_NODES = 2
 
 class NeuralNetwork:
     def __init__(self):
@@ -36,10 +36,7 @@ class NeuralNetwork:
             data = np.matmul(data, self.weights[i]) + self.biases[i]
             if i != len(self.weights) - 1:
                 data = np.maximum(data, np.zeros_like(data))
-        if len(data) == 1:
-            return data[0]
-        data = np.exp(data)
-        return data / np.sum(data)
+        return data[0] if len(data) == 1 else data
 
 
 if __name__ == '__main__':
