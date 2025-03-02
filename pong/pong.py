@@ -5,19 +5,54 @@ import math
 BACKGROUND_COLOR = (0, 0, 0)
 PADDLE_COLOR = (255, 255, 255)
 BALL_COLOR = (0, 200, 255)
+
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
 BALL_RADIUS = 10
-PADDLE_DIST_FROM_EDGE = 5
 PADDLE_WIDTH = 10
 PADDLE_HEIGHT = 50
+PADDLE_DIST_FROM_EDGE = 5
+
 BALL_START_SPEED = 5
-BALL_START_ANGLE = 1
+BALL_START_ANGLE = 20
 BALL_MAX_ANGLE = 75
+
 PADDLE_SPEED = 3
+
+AI_PLAYER = True
 
 left_score = 0
 right_score = 0
+
+class AIPlayer:
+    def __init__(self):
+        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+    
+    def calculate_target(self, ball):
+        x_coord = ball.x
+        y_coord = ball.y
+        x_step = 1
+        y_step = ball.y_velocity / ball.x_velocity
+        while x_coord + BALL_RADIUS < SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH:
+            x_coord += x_step
+            y_coord += y_step
+            if y_coord < BALL_RADIUS or y_coord > SCREEN_HEIGHT - BALL_RADIUS:
+                y_adj = SCREEN_HEIGHT - BALL_RADIUS - y_coord if y_coord > SCREEN_HEIGHT - BALL_RADIUS else BALL_RADIUS - y_coord
+                y_coord += 2 * y_adj
+                y_step *= -1
+        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS, int(PADDLE_HEIGHT / 2) - BALL_RADIUS) - PADDLE_HEIGHT / 2
+
+    def reset_target(self):
+        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+
+    def get_move(self, paddle):
+        if paddle.y < int(self.target_y):
+            return -1
+        if paddle.y > int(self.target_y):
+            return 1
+        return 0
+            
+ai = AIPlayer() if AI_PLAYER else None
 
 class Paddle:
     def __init__(self, side: str):
@@ -72,66 +107,79 @@ class Ball:
         # this gets called if the ball could possibly collide with a paddle.
         if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x or self.x + self.x_velocity - BALL_RADIUS <= left_paddle.x + PADDLE_WIDTH) \
             and self.x + BALL_RADIUS <= right_paddle.x and self.x - BALL_RADIUS >= left_paddle.x + PADDLE_WIDTH:
-
-            ball_slope = self.y_velocity / self.x_velocity
-            
-            # right paddle
-            if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x:
-                collision_y = self.y + ball_slope * (right_paddle.x - (self.x + BALL_RADIUS))
-                if collision_y + BALL_RADIUS > right_paddle.y and collision_y - BALL_RADIUS < right_paddle.y + PADDLE_HEIGHT:
-                    moved_proportion = (right_paddle.x - (self.x + BALL_RADIUS)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
-                    
-                    # calculate how the ball hit the paddle
-                    paddle_center = right_paddle.y + PADDLE_HEIGHT / 2
-                    new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
-                    self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
-                    self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
-
-                    # adjust location
-                    self.x = right_paddle.x - BALL_RADIUS
-                    self.y = collision_y
-                
-                # this is for if the ball was missed
-                else:
-                    global left_score
-                    left_score += 1
-                    print("Left scored!")
-                    return True
-            
-            # left paddle
-            else:
-                collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
-                if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
-                    moved_proportion = ((self.x - BALL_RADIUS) - (left_paddle.x + PADDLE_WIDTH)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
-
-                    # calculate how ball hit paddle
-                    paddle_center = left_paddle.y + PADDLE_HEIGHT / 2
-                    new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
-                    self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
-                    self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
-
-                    # adjust location
-                    self.x = left_paddle.x + PADDLE_WIDTH + BALL_RADIUS
-                    self.y = collision_y
-                
-                # this is for if the ball was missed
-                else:
-                    global right_score
-                    right_score += 1
-                    print("Right scored!")
-                    return True
+            # see if ball collided or was missed
+            res = self.collision_right(right_paddle) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle, ball)
+            if res:
+                return True
 
         # move remaining amount (which is all if the ball did not hit a paddle)
         self.x += self.x_velocity * (1 - moved_proportion)
         self.y += self.y_velocity * (1 - moved_proportion)
         new_y = max(BALL_RADIUS, min(SCREEN_HEIGHT - BALL_RADIUS, self.y))
-        if new_y == BALL_RADIUS or new_y == SCREEN_HEIGHT - BALL_RADIUS:
+        # if it bounced off a wall, we need to correct for the rest of the motion
+        if new_y != self.y:
+            self.y -= 2 * (self.y - new_y)
             self.y_velocity *= -1
-            self.y = new_y + (1 - moved_proportion) * (new_y - self.y)  # move remaining amount
         else:
             self.y = new_y
         return False
         
+    def collision_right(self, right_paddle):
+        ball_slope = self.y_velocity / self.x_velocity
+        collision_y = self.y + ball_slope * (right_paddle.x - (self.x + BALL_RADIUS))
+        if collision_y + BALL_RADIUS > right_paddle.y and collision_y - BALL_RADIUS < right_paddle.y + PADDLE_HEIGHT:
+            moved_proportion = (right_paddle.x - (self.x + BALL_RADIUS)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
+            
+            # calculate how the ball hit the paddle
+            paddle_center = right_paddle.y + PADDLE_HEIGHT / 2
+            new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
+            self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
+            self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
+
+            # adjust location
+            self.x = right_paddle.x - BALL_RADIUS
+            self.y = collision_y
+        
+        # this is for if the ball was missed
+        else:
+            global left_score
+            left_score += 1
+            print(collision_y)
+            print("Left scored!")
+            return True
+    
+        if AI_PLAYER:
+            global ai
+            ai.reset_target()
+        return False
+
+    def collision_left(self, left_paddle, ball):
+        ball_slope = self.y_velocity / self.x_velocity
+        collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
+        if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
+            moved_proportion = ((self.x - BALL_RADIUS) - (left_paddle.x + PADDLE_WIDTH)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
+
+            # calculate how ball hit paddle
+            paddle_center = left_paddle.y + PADDLE_HEIGHT / 2
+            new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
+            self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
+            self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
+
+            # adjust location
+            self.x = left_paddle.x + PADDLE_WIDTH + BALL_RADIUS
+            self.y = collision_y
+        
+        # this is for if the ball was missed
+        else:
+            global right_score
+            right_score += 1
+            print("Right scored!")
+            return True
+        
+        if AI_PLAYER:
+            global ai
+            ai.calculate_target(ball)
+        return False
     
     def draw(self, window):
         pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
@@ -146,6 +194,7 @@ if __name__ == '__main__':
 
     # set up game
     ball = Ball()
+    ai.calculate_target(ball)
     left_paddle = Paddle('l')
     right_paddle = Paddle('r')
 
@@ -157,11 +206,17 @@ if __name__ == '__main__':
                 running = False
             
         keys = pygame.key.get_pressed()
-
-        if keys[pygame.K_DOWN]:
-            right_paddle.move_down()
-        if keys[pygame.K_UP]:
-            right_paddle.move_up()
+        if not AI_PLAYER:
+            if keys[pygame.K_DOWN]:
+                right_paddle.move_down()
+            if keys[pygame.K_UP]:
+                right_paddle.move_up()
+        else:
+            mv = ai.get_move(right_paddle)
+            if mv == 1:
+                right_paddle.move_up()
+            elif mv == -1:
+                right_paddle.move_down()
         if keys[pygame.K_w]:
             left_paddle.move_up()
         if keys[pygame.K_s]:
@@ -170,6 +225,7 @@ if __name__ == '__main__':
         if ball.update(left_paddle, right_paddle):
             print(f"Right: {right_score}\nLeft: {left_score}")
             ball = Ball()
+            ai.calculate_target(ball)
 
         # draw game components
         screen.fill(BACKGROUND_COLOR)
