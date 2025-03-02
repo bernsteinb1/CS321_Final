@@ -80,8 +80,6 @@ def main():
     window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT)) 
     pygame.display.set_caption('Bryce & Ruben: Flappy Bird') 
     clock = pygame.time.Clock()
-    running = True
-    score = 0
     ai_agents = [NeuralNetwork() for _ in range(NUM_AGENTS)]
 
     # setup birds
