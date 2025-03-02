@@ -30,7 +30,7 @@ AI_PLAYER = True
 # left_score = 0
 # right_score = 0
 
-NUM_AGENTS = 100
+NUM_AGENTS = 1000
 
 class Ball:
     def __init__(self):
@@ -54,7 +54,7 @@ class Ball:
         if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x or self.x + self.x_velocity - BALL_RADIUS <= left_paddle.x + PADDLE_WIDTH) \
             and self.x + BALL_RADIUS <= right_paddle.x and self.x - BALL_RADIUS >= left_paddle.x + PADDLE_WIDTH:
             # see if ball collided or was missed
-            res = self.collision_right(right_paddle, pong_ai) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle, ball, pong_ai)
+            res = self.collision_right(right_paddle, pong_ai) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle, self, pong_ai)
             if res:
                 return True
             # how much the ball will have moved when it hits a paddle
@@ -191,10 +191,7 @@ if __name__ == '__main__':
         pong_ais[i].calculate_target(balls[i])
 
     while ai_agents:
-        dead_paddles = set()
-        dead_balls = set()
-        dead_r_paddles = set()
-        dead_pong_ais = set()
+        dead_games = set()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -202,7 +199,7 @@ if __name__ == '__main__':
 
         # 1 tick for each agent and its associated enemy ai
         for i in range(len(ai_agents)):
-            inp = [balls[i].x, balls[i].y, balls[i].x_velocity, balls[i].y_velocity, paddles[i].y, pong_ais[i].target_y] 
+            inp = [balls[i].x, balls[i].y, balls[i].x_velocity, balls[i].y_velocity, paddles[i].y, r_paddles[i].y] 
             up, down = ai_agents[i].run(inp)
             if up > 0 and not down > 0:
                 paddles[i].move_up()
@@ -218,13 +215,10 @@ if __name__ == '__main__':
 
             if balls[i].update(paddles[i], r_paddles[i], pong_ais[i]):
                 # add indexes of to be removed items to array so can use pop to remove later
-                dead_paddles.add(i)
-                dead_balls.add(i)
-                dead_r_paddles.add(i)
-                dead_pong_ais.add(i)
+                dead_games.add(i)
 
         # remove all dead paddles and associated game elements
-        for i in sorted(dead_paddles, reverse=True):
+        for i in sorted(dead_games, reverse=True):
             paddles.pop(i)
             ai_agents.pop(i)
             balls.pop(i)
