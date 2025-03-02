@@ -11,17 +11,55 @@ BALL_RADIUS = 10
 PADDLE_DIST_FROM_EDGE = 5
 PADDLE_WIDTH = 10
 PADDLE_HEIGHT = 50
-BALL_START_SPEED = 3
-PADDLE_SPEED = 2
+BALL_START_SPEED = 5
+BALL_START_ANGLE = 1
+BALL_MAX_ANGLE = 75
+PADDLE_SPEED = 3
+
+left_score = 0
+right_score = 0
+
+class Paddle:
+    def __init__(self, side: str):
+        """Creates a paddle on one of the sides
+
+        Args:
+            side (str): 'l' for left and anything else (but probably should be 'r') for right
+        """
+        if side == 'l':
+            self.x = PADDLE_DIST_FROM_EDGE
+        else:
+            self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH
+        self.y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+    
+    def draw(self, window: pygame.Surface):
+        """Draws paddle onto window
+
+        Args:
+            window (pygame.Surface): where paddle is drawn
+        """
+        pygame.draw.rect(window, PADDLE_COLOR, (self.x, self.y, PADDLE_WIDTH, PADDLE_HEIGHT))
+
+    def move_up(self):
+        """Moves paddle up capping at top of screen
+        """
+        self.y = max(self.y - PADDLE_SPEED, 0)
+    
+    def move_down(self):
+        """Moves paddle down capping at bottom of screen
+            """
+        self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
 
 class Ball:
     def __init__(self):
-        self.x = SCREEN_WIDTH / 2 - BALL_RADIUS / 2
-        self.y = SCREEN_HEIGHT / 2 - BALL_RADIUS / 2
+        self.x = SCREEN_WIDTH / 2
+        self.y = SCREEN_HEIGHT / 2
         self.randomize_start_vel()
 
     def randomize_start_vel(self):
-        angle = random.randint(-10, 10)
+        """Randomizes start velocity for ball up to BALL_START_ANGLE
+        """
+        angle = random.randint(-BALL_START_ANGLE, BALL_START_ANGLE)
         if random.random() < .5:
             angle += 180
         angle = math.radians(angle)
@@ -29,63 +67,74 @@ class Ball:
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
 
     def update(self, left_paddle, right_paddle):
-        moved_proportion = 0
+
+        moved_proportion = 0  # at the beginning the ball has not moved at all
         # this gets called if the ball could possibly collide with a paddle.
-        if (self.x + self.x_velocity > right_paddle.x or self.x + self.x_velocity < left_paddle.x + PADDLE_WIDTH) \
-            and self.x <= right_paddle.x and self.x >= left_paddle.x + PADDLE_WIDTH:
+        if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x or self.x + self.x_velocity - BALL_RADIUS <= left_paddle.x + PADDLE_WIDTH) \
+            and self.x + BALL_RADIUS <= right_paddle.x and self.x - BALL_RADIUS >= left_paddle.x + PADDLE_WIDTH:
+
             ball_slope = self.y_velocity / self.x_velocity
+            
             # right paddle
-            if self.x + self.x_velocity > right_paddle.x:
-                collision_y = self.y + ball_slope * (right_paddle.x - self.x)
+            if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x:
+                collision_y = self.y + ball_slope * (right_paddle.x - (self.x + BALL_RADIUS))
                 if collision_y + BALL_RADIUS > right_paddle.y and collision_y - BALL_RADIUS < right_paddle.y + PADDLE_HEIGHT:
+                    moved_proportion = (right_paddle.x - (self.x + BALL_RADIUS)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
+                    
+                    # calculate how the ball hit the paddle
                     paddle_center = right_paddle.y + PADDLE_HEIGHT / 2
-                    moved_proportion = (right_paddle.x - self.x) / self.x_velocity
-                    new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * 15/36 * math.pi
+                    new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
                     self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
                     self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
 
-                    self.x = right_paddle.x
+                    # adjust location
+                    self.x = right_paddle.x - BALL_RADIUS
                     self.y = collision_y
+                
+                # this is for if the ball was missed
+                else:
+                    global left_score
+                    left_score += 1
+                    print("Left scored!")
+                    return True
+            
             # left paddle
             else:
-                collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - self.x)
+                collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
                 if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
+                    moved_proportion = ((self.x - BALL_RADIUS) - (left_paddle.x + PADDLE_WIDTH)) / self.x_velocity  # the ball has moved up to the point where it collides with the paddle
+
+                    # calculate how ball hit paddle
                     paddle_center = left_paddle.y + PADDLE_HEIGHT / 2
-                    moved_proportion = (self.x - (left_paddle.x + PADDLE_WIDTH)) / self.x_velocity
-                    new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * 15/36 * math.pi
+                    new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
                     self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
                     self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
 
-                    self.x = left_paddle.x + PADDLE_WIDTH
+                    # adjust location
+                    self.x = left_paddle.x + PADDLE_WIDTH + BALL_RADIUS
                     self.y = collision_y
-        # no collision
+                
+                # this is for if the ball was missed
+                else:
+                    global right_score
+                    right_score += 1
+                    print("Right scored!")
+                    return True
+
+        # move remaining amount (which is all if the ball did not hit a paddle)
         self.x += self.x_velocity * (1 - moved_proportion)
         self.y += self.y_velocity * (1 - moved_proportion)
-        self.y = max(BALL_RADIUS, min(SCREEN_HEIGHT - BALL_RADIUS, self.y))
-        if self.y == BALL_RADIUS or self.y == SCREEN_HEIGHT - BALL_RADIUS:
+        new_y = max(BALL_RADIUS, min(SCREEN_HEIGHT - BALL_RADIUS, self.y))
+        if new_y == BALL_RADIUS or new_y == SCREEN_HEIGHT - BALL_RADIUS:
             self.y_velocity *= -1
+            self.y = new_y + (1 - moved_proportion) * (new_y - self.y)  # move remaining amount
+        else:
+            self.y = new_y
+        return False
         
     
     def draw(self, window):
         pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
-
-
-class Paddle:
-    def __init__(self, side):
-        if side == 'l':
-            self.x = PADDLE_DIST_FROM_EDGE
-        else:
-            self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH
-        self.y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-    
-    def draw(self, window):
-        pygame.draw.rect(window, PADDLE_COLOR, (self.x, self.y, PADDLE_WIDTH, PADDLE_HEIGHT))
-
-    def move_up(self):
-        self.y = max(self.y - PADDLE_SPEED, 0)
-    
-    def move_down(self):
-        self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
         
 
 if __name__ == '__main__':
@@ -94,12 +143,13 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
-    running = True
 
     # set up game
     ball = Ball()
     left_paddle = Paddle('l')
     right_paddle = Paddle('r')
+
+    running = True
 
     while running:
         for event in pygame.event.get():
@@ -117,7 +167,9 @@ if __name__ == '__main__':
         if keys[pygame.K_s]:
             left_paddle.move_down()
 
-        ball.update(left_paddle, right_paddle)
+        if ball.update(left_paddle, right_paddle):
+            print(f"Right: {right_score}\nLeft: {left_score}")
+            ball = Ball()
 
         # draw game components
         screen.fill(BACKGROUND_COLOR)
