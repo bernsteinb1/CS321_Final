@@ -30,7 +30,7 @@ AI_PLAYER = True
 # left_score = 0
 # right_score = 0
 
-NUM_AGENTS = 1000
+NUM_AGENTS = 100000
 
 class Ball:
     def __init__(self):
@@ -143,7 +143,7 @@ class AIPlayer:
                 y_adj = SCREEN_HEIGHT - BALL_RADIUS - y_coord if y_coord > SCREEN_HEIGHT - BALL_RADIUS else BALL_RADIUS - y_coord
                 y_coord += 2 * y_adj
                 y_step *= -1
-        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS + 1, int(PADDLE_HEIGHT / 2) - BALL_RADIUS + 1) - PADDLE_HEIGHT / 2 # can't be equal to ball radius so we add 1
+        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS + 1, int(PADDLE_HEIGHT / 2) + BALL_RADIUS - 1) - PADDLE_HEIGHT / 2 # can't be equal to ball radius so we add 1
 
     def reset_target(self):
         self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
