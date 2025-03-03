@@ -12,7 +12,7 @@ Controls:
   - up arrow: move up
   - down arrow: move down
 
-If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. Notably, there is a AI_PLAYER. If this variable is True, the right paddle will be played by an "optimal" AI agent.
+If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. **Notably**, there is a AI_PLAYER variable. If this variable is True, the right paddle will be played by an "optimal" AI agent.
 
 # AI Pong
 ai_pong.py implements an AI agent to play the game as the left paddle against the "optimal" AI agent mentioned above.
