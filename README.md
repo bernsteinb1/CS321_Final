@@ -6,6 +6,6 @@ A repository containing code for an AI agent to play Flappy Bird and Pong.
 - pygame
 
 # How to run code:
-- On a command line from the relevant directory:
+- On a command line from within the relevant directory:
   - `python3 ai_flappy_bird.py`
   - `python3 ai_pong.py`
