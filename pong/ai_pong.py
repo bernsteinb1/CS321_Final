@@ -24,13 +24,11 @@ BALL_MAX_ANGLE = 75
 
 PADDLE_SPEED = 3
 
-# neural network is trained assuming there is an ai player
-AI_PLAYER = True
+NUM_AGENTS = 10000
 
-# left_score = 0
-# right_score = 0
-
-NUM_AGENTS = 100000
+GENERATIONS = 10
+SELECT_NUM = 10
+RANDOM_NETWORKS_PER_GEN = 50
 
 class Ball:
     def __init__(self):
@@ -48,84 +46,31 @@ class Ball:
         self.x_velocity = BALL_START_SPEED * math.cos(angle)
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
 
-    def update(self, left_paddle, right_paddle, pong_ai):
-        moved_proportion = 0  # at the beginning the ball has not moved at all
-        # this gets called if the ball could possibly collide with a paddle.
-        if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x or self.x + self.x_velocity - BALL_RADIUS <= left_paddle.x + PADDLE_WIDTH) \
-            and self.x + BALL_RADIUS <= right_paddle.x and self.x - BALL_RADIUS >= left_paddle.x + PADDLE_WIDTH:
-            # see if ball collided or was missed
-            res = self.collision_right(right_paddle, pong_ai) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle, self, pong_ai)
-            if res:
-                return True
-            # how much the ball will have moved when it hits a paddle
-            moved_proportion (right_paddle.x - (self.x + BALL_RADIUS)) / self.x_velocity if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else ((self.x - BALL_RADIUS) - (left_paddle.x + PADDLE_WIDTH)) / self.x_velocity
-
-        # move remaining amount (which is all if the ball did not hit a paddle)
-        self.x += self.x_velocity * (1 - moved_proportion)
-        self.y += self.y_velocity * (1 - moved_proportion)
-        new_y = max(BALL_RADIUS, min(SCREEN_HEIGHT - BALL_RADIUS, self.y))
-        # if it bounced off a wall, we need to correct for the rest of the motion
-        if new_y != self.y:
-            self.y -= 2 * (self.y - new_y)
-            self.y_velocity *= -1
-        else:
-            self.y = new_y
-        return False
-        
-    def collision_right(self, right_paddle, pong_ai):
-        ball_slope = self.y_velocity / self.x_velocity
-        collision_y = self.y + ball_slope * (right_paddle.x - (self.x + BALL_RADIUS))
-        if collision_y + BALL_RADIUS > right_paddle.y and collision_y - BALL_RADIUS < right_paddle.y + PADDLE_HEIGHT:
-            
-            # calculate how the ball hit the paddle
-            paddle_center = right_paddle.y + PADDLE_HEIGHT / 2
-            new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
-            self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
-            self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
-
-            # adjust location
-            self.x = right_paddle.x - BALL_RADIUS
-            self.y = collision_y
-        
-        # this is for if the ball was missed
-        else:
-            # global left_score
-            # left_score += 1
-            # print("Left scored!")
-            return True
-    
-        if AI_PLAYER:
-            pong_ai.reset_target()
-        return False
-
-    def collision_left(self, left_paddle, ball, pong_ai):
-        ball_slope = self.y_velocity / self.x_velocity
-        collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
-        if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
-
-            # calculate how ball hit paddle
-            paddle_center = left_paddle.y + PADDLE_HEIGHT / 2
-            new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
-            self.x_velocity = BALL_START_SPEED * math.cos(new_angle)
-            self.y_velocity = BALL_START_SPEED * math.sin(new_angle)
-
-            # adjust location
-            self.x = left_paddle.x + PADDLE_WIDTH + BALL_RADIUS
-            self.y = collision_y
-        
-        # this is for if the ball was missed
-        else:
-            # global right_score
-            # right_score += 1
-            # print("Right scored!")
-            return True
-        
-        if AI_PLAYER:
-            pong_ai.calculate_target(ball)
-        return False
-    
     def draw(self, window):
         pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
+
+
+class Paddle:
+    def __init__(self, side):
+        if side == 'l':
+            self.x = PADDLE_DIST_FROM_EDGE
+        else:
+            self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH
+        self.y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+    
+    def draw(self, window):
+        pygame.draw.rect(window, PADDLE_COLOR, (self.x, self.y, PADDLE_WIDTH, PADDLE_HEIGHT))
+
+    def move_up(self, target=None):
+        self.y = max(self.y - PADDLE_SPEED, 0)
+        if target is not None:
+            self.y = max(self.y, target)
+    
+    def move_down(self, target=None):
+        self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
+        if target is not None:
+            self.y = min(self.y, target)
+
 
 class AIPlayer:
     def __init__(self):
@@ -155,22 +100,98 @@ class AIPlayer:
             return 1
         return 0
     
-class Paddle:
-    def __init__(self, side):
-        if side == 'l':
-            self.x = PADDLE_DIST_FROM_EDGE
-        else:
-            self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH
-        self.y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-    
-    def draw(self, window):
-        pygame.draw.rect(window, PADDLE_COLOR, (self.x, self.y, PADDLE_WIDTH, PADDLE_HEIGHT))
 
-    def move_up(self):
-        self.y = max(self.y - PADDLE_SPEED, 0)
+class Game:
+    def __init__(self, neural_net):
+        self.ball = Ball()
+        self.left_paddle = Paddle('l')
+        self.right_paddle = Paddle('r')
+        self.left_ai = neural_net
+        self.right_ai = AIPlayer()
+        self.right_ai.calculate_target(self.ball)
+        self.running = True
+        self.score = 0
+        self.has_moved = False
+
+    def draw(self, screen):
+        self.left_paddle.draw(screen)
+        self.right_paddle.draw(screen)
+        self.ball.draw(screen)
+
+    def update(self):
+        moved_proportion = 0  # at the beginning the ball has not moved at all
+        # this gets called if the ball could possibly collide with a paddle.
+        if (self.ball.x + self.ball.x_velocity + BALL_RADIUS >= self.right_paddle.x or self.ball.x + self.ball.x_velocity - BALL_RADIUS <= self.left_paddle.x + PADDLE_WIDTH) \
+            and self.ball.x + BALL_RADIUS <= self.right_paddle.x and self.ball.x - BALL_RADIUS >= self.left_paddle.x + PADDLE_WIDTH:
+            # see if ball collided or was missed
+            res = self.collision_right() if self.ball.x + self.ball.x_velocity + BALL_RADIUS >= self.right_paddle.x else self.collision_left()
+            if res:
+                return True
+            # how much the ball will have moved when it hits a paddle
+            moved_proportion (self.right_paddle.x - (self.ball.x + BALL_RADIUS)) / self.ball.x_velocity if self.ball.x + self.ball.x_velocity + BALL_RADIUS >= self.right_paddle.x else ((self.ball.x - BALL_RADIUS) - (self.left_paddle.x + PADDLE_WIDTH)) / self.ball.x_velocity
+
+        # move remaining amount (which is all if the ball did not hit a paddle)
+        self.ball.x += self.ball.x_velocity * (1 - moved_proportion)
+        self.ball.y += self.ball.y_velocity * (1 - moved_proportion)
+        new_y = max(BALL_RADIUS, min(SCREEN_HEIGHT - BALL_RADIUS, self.ball.y))
+        # if it bounced off a wall, we need to correct for the rest of the motion
+        if new_y != self.ball.y:
+            self.ball.y -= 2 * (self.ball.y - new_y)
+            self.ball.y_velocity *= -1
+        else:
+            self.ball.y = new_y
+        return False
+        
+    def collision_right(self):
+        ball_slope = self.ball.y_velocity / self.ball.x_velocity
+        collision_y = self.ball.y + ball_slope * (self.right_paddle.x - (self.ball.x + BALL_RADIUS))
+        if collision_y + BALL_RADIUS > self.right_paddle.y and collision_y - BALL_RADIUS < self.right_paddle.y + PADDLE_HEIGHT:
+            
+            # calculate how the ball hit the paddle
+            paddle_center = self.right_paddle.y + PADDLE_HEIGHT / 2
+            new_angle = math.pi + (paddle_center - collision_y) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
+            self.ball.x_velocity = BALL_START_SPEED * math.cos(new_angle)
+            self.ball.y_velocity = BALL_START_SPEED * math.sin(new_angle)
+
+            # adjust location
+            self.ball.x = self.right_paddle.x - BALL_RADIUS
+            self.ball.y = collision_y
+        
+        # this is for if the ball was missed
+        else:
+            return True
     
-    def move_down(self):
-        self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
+        self.right_ai.reset_target()
+        return False
+
+    def collision_left(self):
+        ball_slope = self.ball.y_velocity / self.ball.x_velocity
+        collision_y = self.ball.y + ball_slope * (self.left_paddle.x + PADDLE_WIDTH - (self.ball.x - BALL_RADIUS))
+        if collision_y + BALL_RADIUS > self.left_paddle.y and collision_y - BALL_RADIUS < self.left_paddle.y + PADDLE_HEIGHT:
+
+            # calculate how ball hit paddle
+            paddle_center = self.left_paddle.y + PADDLE_HEIGHT / 2
+            new_angle = (collision_y - paddle_center) / (PADDLE_HEIGHT / 2 + BALL_RADIUS) * math.radians(BALL_MAX_ANGLE)
+            self.ball.x_velocity = BALL_START_SPEED * math.cos(new_angle)
+            self.ball.y_velocity = BALL_START_SPEED * math.sin(new_angle)
+
+            # adjust location
+            self.ball.x = self.left_paddle.x + PADDLE_WIDTH + BALL_RADIUS
+            self.ball.y = collision_y
+        
+        # this is for if the ball was missed
+        else:
+            self.score -= abs(collision_y - (self.left_paddle.y + PADDLE_HEIGHT / 2)) / SCREEN_HEIGHT
+            return True
+        
+        # inc score if ball hit
+        if self.has_moved:
+            self.score += 1
+        else:
+            self.score += 0
+        self.has_moved = False
+        self.right_ai.calculate_target(self.ball)
+        return False
         
 
 if __name__ == '__main__':
@@ -180,60 +201,63 @@ if __name__ == '__main__':
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
 
-    ai_agents = [NeuralNetwork() for _ in range(NUM_AGENTS)]
-    # ai agent will control left paddle, optimal pong AI will control right paddle
-    paddles = [Paddle('l') for _ in range(NUM_AGENTS)]
-    pong_ais = [AIPlayer() for _ in range(NUM_AGENTS)]
-    r_paddles = [Paddle('r') for _ in range(NUM_AGENTS)]
-    balls = [Ball() for _ in range(NUM_AGENTS)]
+    games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
+    
+    for _ in range(GENERATIONS):
+        living_game = True
+        while living_game:
+            living_game = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
 
-    for i in range(len(pong_ais)):
-        pong_ais[i].calculate_target(balls[i])
+            screen.fill(BACKGROUND_COLOR)
 
-    while ai_agents:
-        dead_games = set()
+            # 1 tick for each agent and its associated enemy ai
+            for game in games:
+                if game.running:
+                    living_game = True
+                    inp = [game.ball.x, game.ball.y, game.ball.x_velocity, game.ball.y_velocity, game.left_paddle.y, game.right_paddle.y] 
+                    up, down = game.left_ai.run(inp)
+                    if up > 0 and not down > 0:
+                        before_y = game.left_paddle.y
+                        game.left_paddle.move_up()
+                        after_y = game.left_paddle.y
+                        if before_y != after_y:
+                            game.has_moved = True
+                    if down > 0 and not up > 0:
+                        before_y = game.left_paddle.y
+                        game.left_paddle.move_down()
+                        after_y = game.left_paddle.y
+                        if before_y != after_y:
+                            game.has_moved = True
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
+                    # move pong ai
+                    mv = game.right_ai.get_move(game.right_paddle)
+                    if mv == 1:
+                        game.right_paddle.move_up(target=game.right_ai.target_y)
+                    elif mv == -1:
+                        game.right_paddle.move_down(target=game.right_ai.target_y)
 
-        # 1 tick for each agent and its associated enemy ai
-        for i in range(len(ai_agents)):
-            inp = [balls[i].x, balls[i].y, balls[i].x_velocity, balls[i].y_velocity, paddles[i].y, r_paddles[i].y] 
-            up, down = ai_agents[i].run(inp)
-            if up > 0 and not down > 0:
-                paddles[i].move_up()
-            if down > 0 and not up > 0:
-                paddles[i].move_down()
+                    if game.update():
+                        # add indexes of to be removed items to array so can use pop to remove later
+                        game.running = False
+                    game.draw(screen)
 
-            # move pong ai
-            mv = pong_ais[i].get_move(r_paddles[i])
-            if mv == 1:
-                r_paddles[i].move_up()
-            elif mv == -1:
-                r_paddles[i].move_down()
-
-            if balls[i].update(paddles[i], r_paddles[i], pong_ais[i]):
-                # add indexes of to be removed items to array so can use pop to remove later
-                dead_games.add(i)
-
-        # remove all dead paddles and associated game elements
-        for i in sorted(dead_games, reverse=True):
-            paddles.pop(i)
-            ai_agents.pop(i)
-            balls.pop(i)
-            r_paddles.pop(i)
-            pong_ais.pop(i)
-
-        # draw game components
-        screen.fill(BACKGROUND_COLOR)
-        for paddle in paddles:
-            paddle.draw(screen)
-        for ball in balls:
-            ball.draw(screen)
-        for r_paddle in r_paddles:
-            r_paddle.draw(screen)
-
-        pygame.display.flip()
-        clock.tick(60)
+            pygame.display.flip()
+            # clock.tick(60)
+        games.sort(key=lambda game: game.score, reverse=True)
+        new_games = games[:SELECT_NUM]
+        for i in range(len(new_games)):
+            print(new_games[i].score)
+            new_games[i] = Game(games[i].left_ai)
+        print('============================')
+        while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
+            for i in range(SELECT_NUM):
+                new_games.append(Game(new_games[i].left_ai.mutate()))
+        while len(new_games) > NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
+            new_games.remove(random.choice(new_games))
+        for i in range(RANDOM_NETWORKS_PER_GEN):
+            new_games.append(Game(NeuralNetwork()))
+        games = new_games
     pygame.quit()
