@@ -20,4 +20,4 @@ ai_pong.py implements an AI agent to play the game as the left paddle against th
 To watch the AI learn and play the game, run:
 - `python3 ai_pong.py`
 
-The same variables that customize the game above can be modified to change how this version of the game runs as well. Notably, there is a NUM_AGENTS variable that controls the number of AI agents that play the game per generation.
+The same variables that customize the game above can be modified to change how this version of the game runs as well. Notably, there is a NUM_AGENTS variable that controls the number of AI agents that play the game per generation, and the AI_PLAYER variable has been removed because the AI_PLAYER is always used to train the neural network.
