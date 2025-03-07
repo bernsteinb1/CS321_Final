@@ -1,16 +1,16 @@
 import numpy as np
 from typing import Union
 import time
-from copy import copy
+from copy import deepcopy
 import random
 
 INPUT_NODES = 6
 HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
 OUTPUT_NODES = 2
 
-MUTATION_RATE = .1
+MUTATION_RATE = .05
 REPLACEMENT_RATE = .005
-STD = .005
+STD = .01
 
 class NeuralNetwork:
     def __init__(self):
@@ -41,11 +41,11 @@ class NeuralNetwork:
         for i in range(len(self.weights)):
             data = np.matmul(data, self.weights[i]) + self.biases[i]
             if i != len(self.weights) - 1:
-                data = np.maximum(data, np.zeros_like(data))
+                data = 1/ (1 + np.exp(-data))
         return data[0] if len(data) == 1 else data
     
     def mutate(self):
-        new_network = copy(self)
+        new_network = deepcopy(self)
         for i in range(len(new_network.weights)):
             adjustments = np.zeros_like(new_network.weights[i])
             for row in adjustments:

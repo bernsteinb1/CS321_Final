@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 import sys
+import numpy as np
 from nn import NeuralNetwork
 
 # changing any of these will change something about the game.
@@ -24,11 +25,15 @@ BALL_MAX_ANGLE = 75
 
 PADDLE_SPEED = 3
 
-NUM_AGENTS = 10000
+NUM_AGENTS = 1000
 
-GENERATIONS = 10
-SELECT_NUM = 10
+GENERATIONS = 30
+SELECT_NUM = 50
 RANDOM_NETWORKS_PER_GEN = 50
+GAMES_PER_GEN = 5
+
+STILLNESS_PUNISHMENT_FACTOR = .5
+DISTANCE_PUNISHMENT_FACTOR = 1
 
 class Ball:
     def __init__(self):
@@ -181,14 +186,13 @@ class Game:
         
         # this is for if the ball was missed
         else:
-            self.score -= abs(collision_y - (self.left_paddle.y + PADDLE_HEIGHT / 2)) / SCREEN_HEIGHT
+            self.score -= abs(collision_y - (self.left_paddle.y + PADDLE_HEIGHT / 2)) / SCREEN_HEIGHT * DISTANCE_PUNISHMENT_FACTOR
             return True
         
         # inc score if ball hit
-        if self.has_moved:
-            self.score += 1
-        else:
-            self.score += 0
+        self.score += 1
+        if not self.has_moved:
+            self.score -= 1 * STILLNESS_PUNISHMENT_FACTOR
         self.has_moved = False
         self.right_ai.calculate_target(self.ball)
         return False
@@ -204,48 +208,52 @@ if __name__ == '__main__':
     games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
     
     for _ in range(GENERATIONS):
-        living_game = True
-        while living_game:
-            living_game = False
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
+        for _ in range(GAMES_PER_GEN):
+            living_game = True
+            while living_game:
+                living_game = False
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        sys.exit()
 
-            screen.fill(BACKGROUND_COLOR)
+                screen.fill(BACKGROUND_COLOR)
 
-            # 1 tick for each agent and its associated enemy ai
-            for game in games:
-                if game.running:
-                    living_game = True
-                    inp = [game.ball.x, game.ball.y, game.ball.x_velocity, game.ball.y_velocity, game.left_paddle.y, game.right_paddle.y] 
-                    up, down = game.left_ai.run(inp)
-                    if up > 0 and not down > 0:
-                        before_y = game.left_paddle.y
-                        game.left_paddle.move_up()
-                        after_y = game.left_paddle.y
-                        if before_y != after_y:
-                            game.has_moved = True
-                    if down > 0 and not up > 0:
-                        before_y = game.left_paddle.y
-                        game.left_paddle.move_down()
-                        after_y = game.left_paddle.y
-                        if before_y != after_y:
-                            game.has_moved = True
+                # 1 tick for each agent and its associated enemy ai
+                for game in games:
+                    if game.running:
+                        living_game = True
+                        inp = [game.ball.x, game.ball.y, game.ball.x_velocity, game.ball.y_velocity, game.left_paddle.y + PADDLE_HEIGHT / 2, game.right_paddle.y + PADDLE_HEIGHT / 2] 
+                        up, down = game.left_ai.run(inp)
+                        if up > 0 and not down > 0:
+                            before_y = game.left_paddle.y
+                            game.left_paddle.move_up()
+                            after_y = game.left_paddle.y
+                            if before_y != after_y:
+                                game.has_moved = True
+                        if down > 0 and not up > 0:
+                            before_y = game.left_paddle.y
+                            game.left_paddle.move_down()
+                            after_y = game.left_paddle.y
+                            if before_y != after_y:
+                                game.has_moved = True
 
-                    # move pong ai
-                    mv = game.right_ai.get_move(game.right_paddle)
-                    if mv == 1:
-                        game.right_paddle.move_up(target=game.right_ai.target_y)
-                    elif mv == -1:
-                        game.right_paddle.move_down(target=game.right_ai.target_y)
+                        # move pong ai
+                        mv = game.right_ai.get_move(game.right_paddle)
+                        if mv == 1:
+                            game.right_paddle.move_up(target=game.right_ai.target_y)
+                        elif mv == -1:
+                            game.right_paddle.move_down(target=game.right_ai.target_y)
 
-                    if game.update():
-                        # add indexes of to be removed items to array so can use pop to remove later
-                        game.running = False
-                    game.draw(screen)
+                        if game.update():
+                            # add indexes of to be removed items to array so can use pop to remove later
+                            game.running = False
+                        # game.draw(screen)
 
-            pygame.display.flip()
-            # clock.tick(60)
+                # pygame.display.flip()
+            for i in range(len(games)):
+                score = games[i].score
+                games[i] = Game(games[i].left_ai)
+                games[i].score = score
         games.sort(key=lambda game: game.score, reverse=True)
         new_games = games[:SELECT_NUM]
         for i in range(len(new_games)):
