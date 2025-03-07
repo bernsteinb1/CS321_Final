@@ -245,7 +245,7 @@ if __name__ == '__main__':
                             game.right_paddle.move_down(target=game.right_ai.target_y)
 
                         if game.update():
-                            # add indexes of to be removed items to array so can use pop to remove later
+                            # remove finished game
                             game.running = False
                         # game.draw(screen)
 
@@ -260,6 +260,7 @@ if __name__ == '__main__':
             print(new_games[i].score)
             new_games[i] = Game(games[i].left_ai)
         print('============================')
+        # create next generation
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
             for i in range(SELECT_NUM):
                 new_games.append(Game(new_games[i].left_ai.mutate()))
