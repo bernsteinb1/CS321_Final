@@ -64,16 +64,24 @@ class NeuralNetwork:
 
 # TODO: actually use the parents chosen in this function
 def crossover(games):
+    # softmax
     fitness_scores = np.array([game.score for game in games])
+    # networks = [game.left_ai for game in games]
     exp_fitness = np.exp(fitness_scores)
     probabilities = exp_fitness / np.sum(exp_fitness)
 
-    # need to do this more than once
+    # need to do this more than once?
     parent1 = np.random.choice(games, p=probabilities)
     parent2 = np.random.choice(games, p=probabilities)
     print("parent 1 score:", parent1.score, "parent 2 score:", parent2.score)
 
+    # i think using len of HIDDEN_LAYER_NODES gives number of weights
+    num_weights = len(HIDDEN_LAYER_NODES)
+    pivot = random.randrange(0, num_weights)
+
     # need to use selected parents to create new child
+    # try single/one point crossover for now
+
 
 
 if __name__ == '__main__':
