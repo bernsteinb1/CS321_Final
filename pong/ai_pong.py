@@ -3,7 +3,7 @@ import random
 import math
 import sys
 import numpy as np
-from nn import NeuralNetwork
+from nn import NeuralNetwork, crossover
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -256,6 +256,10 @@ if __name__ == '__main__':
                 games[i].score = score
         games.sort(key=lambda game: game.score, reverse=True)
         new_games = games[:SELECT_NUM]
+
+        # unfinished crossover implementation, currently does nothing
+        crossover(new_games)
+
         for i in range(len(new_games)):
             print(new_games[i].score)
             new_games[i] = Game(games[i].left_ai)

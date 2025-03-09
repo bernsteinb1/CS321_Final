@@ -62,6 +62,19 @@ class NeuralNetwork:
             
         return new_network
 
+# TODO: actually use the parents chosen in this function
+def crossover(games):
+    fitness_scores = np.array([game.score for game in games])
+    exp_fitness = np.exp(fitness_scores)
+    probabilities = exp_fitness / np.sum(exp_fitness)
+
+    # need to do this more than once
+    parent1 = np.random.choice(games, p=probabilities)
+    parent2 = np.random.choice(games, p=probabilities)
+    print("parent 1 score:", parent1.score, "parent 2 score:", parent2.score)
+
+    # need to use selected parents to create new child
+
 
 if __name__ == '__main__':
     networks = [NeuralNetwork() for _ in range(1000)]
