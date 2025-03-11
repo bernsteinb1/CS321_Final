@@ -279,8 +279,6 @@ if __name__ == '__main__':
         for i in range(len(new_games)):
             print(new_games[i].score)
             new_games[i] = Game(games[i].left_ai)
-            # added score to compute softmax, idk if this is right
-            new_games[i].score = games[i].score
         print('============================')
         
         # create next generation
