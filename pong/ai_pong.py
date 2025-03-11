@@ -3,7 +3,7 @@ import random
 import math
 import sys
 import numpy as np
-from nn import NeuralNetwork, crossover
+from nn import NeuralNetwork
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -196,6 +196,13 @@ class Game:
         self.has_moved = False
         self.right_ai.calculate_target(self.ball)
         return False
+    
+def get_softmax_probabilities(games):
+    fitness_scores = np.array([game.score for game in games])
+    exp_fitness = np.exp(fitness_scores)
+    probabilities = exp_fitness / np.sum(exp_fitness)
+
+    return probabilities
         
 
 if __name__ == '__main__':
@@ -257,17 +264,26 @@ if __name__ == '__main__':
         games.sort(key=lambda game: game.score, reverse=True)
         new_games = games[:SELECT_NUM]
 
-        # unfinished crossover implementation, currently does nothing
-        crossover(new_games)
-
         for i in range(len(new_games)):
             print(new_games[i].score)
             new_games[i] = Game(games[i].left_ai)
+            # added score to compute softmax, idk if this is right
+            new_games[i].score = games[i].score
         print('============================')
+        
         # create next generation
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
             for i in range(SELECT_NUM):
-                new_games.append(Game(new_games[i].left_ai.mutate()))
+                probabilities = get_softmax_probabilities(new_games)
+                parent1 = np.random.choice(new_games, p=probabilities)
+                parent2 = np.random.choice(new_games, p=probabilities)
+                # print("parent 1 score:", parent1.score, "parent 2 score:", parent2.score)
+
+                # does this work to crossover then mutate?
+                crossover_child = Game(new_games[i].left_ai.crossover(parent1, parent2)) 
+                new_games.append(Game(crossover_child.left_ai.mutate()))
+
+                # new_games.append(Game(new_games[i].left_ai.mutate()))
         while len(new_games) > NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
             new_games.remove(random.choice(new_games))
         for i in range(RANDOM_NETWORKS_PER_GEN):

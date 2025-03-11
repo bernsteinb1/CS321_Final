@@ -61,27 +61,19 @@ class NeuralNetwork:
             new_network.biases[i] += adjustments
             
         return new_network
-
-# TODO: actually use the parents chosen in this function
-def crossover(games):
-    # softmax
-    fitness_scores = np.array([game.score for game in games])
-    # networks = [game.left_ai for game in games]
-    exp_fitness = np.exp(fitness_scores)
-    probabilities = exp_fitness / np.sum(exp_fitness)
-
-    # need to do this more than once?
-    parent1 = np.random.choice(games, p=probabilities)
-    parent2 = np.random.choice(games, p=probabilities)
-    print("parent 1 score:", parent1.score, "parent 2 score:", parent2.score)
-
-    # i think using len of HIDDEN_LAYER_NODES gives number of weights
-    num_weights = len(HIDDEN_LAYER_NODES)
-    pivot = random.randrange(0, num_weights)
-
-    # need to use selected parents to create new child
-    # try single/one point crossover for now
-
+    
+    def crossover(self, parent1, parent2):
+        """Performs uniform crossover using given parents to create and return child neural network object.
+        Parents must be Game objects."""
+        child = deepcopy(self)
+        for i in range(len(child.weights)):
+            for row in range(child.weights[i].shape[0]):
+                for col in range(child.weights[i].shape[1]):
+                    if random.random() < 0.5:
+                        child.weights[i][row][col] = parent1.left_ai.weights[i][row][col]
+                    else:
+                        child.weights[i][row][col] = parent2.left_ai.weights[i][row][col]
+        return child
 
 
 if __name__ == '__main__':
