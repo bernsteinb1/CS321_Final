@@ -211,6 +211,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
+    graphics_on = True
 
     games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
     
@@ -223,7 +224,17 @@ if __name__ == '__main__':
                     if event.type == pygame.QUIT:
                         sys.exit()
 
-                screen.fill(BACKGROUND_COLOR)
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_SPACE:
+                            if graphics_on:
+                                graphics_on = False
+                                print("Graphics turned OFF")
+                            else:
+                                graphics_on = True
+                                print("Graphics turned ON")
+
+                if graphics_on:
+                    screen.fill(BACKGROUND_COLOR)
 
                 # 1 tick for each agent and its associated enemy ai
                 for game in games:
@@ -254,9 +265,10 @@ if __name__ == '__main__':
                         if game.update():
                             # remove finished game
                             game.running = False
-                        # game.draw(screen)
-
-                # pygame.display.flip()
+                        if graphics_on:
+                            game.draw(screen)
+                if graphics_on:
+                    pygame.display.flip()
             for i in range(len(games)):
                 score = games[i].score
                 games[i] = Game(games[i].left_ai)
