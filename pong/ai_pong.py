@@ -3,7 +3,7 @@ import random
 import math
 import sys
 import numpy as np
-from nn import NeuralNetwork
+from nn import NeuralNetwork, crossover
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -27,13 +27,13 @@ PADDLE_SPEED = 3
 
 NUM_AGENTS = 1000
 
-GENERATIONS = 30
-SELECT_NUM = 50
-RANDOM_NETWORKS_PER_GEN = 50
+GENERATIONS = 100
+SELECT_NUM = 10
+RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
 GAMES_PER_GEN = 5
 
-STILLNESS_PUNISHMENT_FACTOR = .5
-DISTANCE_PUNISHMENT_FACTOR = 1
+STILLNESS_PUNISHMENT_FACTOR = 0
+DISTANCE_PUNISHMENT_FACTOR = 0
 
 class Ball:
     def __init__(self):
@@ -162,8 +162,9 @@ class Game:
             self.ball.x = self.right_paddle.x - BALL_RADIUS
             self.ball.y = collision_y
         
-        # this is for if the ball was missed
+        # this is for if the ball was missed, it shouldn't happend, but does sometimes.
         else:
+            print(self.right_ai.target_y, collision_y, file=sys.stderr)
             return True
     
         self.right_ai.reset_target()
@@ -197,11 +198,12 @@ class Game:
         self.right_ai.calculate_target(self.ball)
         return False
     
-def get_softmax_probabilities(games):
+def get_probabilities(games):
     fitness_scores = np.array([game.score for game in games])
-    exp_fitness = np.exp(fitness_scores)
-    probabilities = exp_fitness / np.sum(exp_fitness)
-
+    small = np.min(fitness_scores)
+    if small < 0:
+        fitness_scores -= small
+    probabilities = fitness_scores / np.sum(fitness_scores)
     return probabilities
         
 
@@ -212,10 +214,10 @@ if __name__ == '__main__':
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
     graphics_on = True
-
+    
     games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
     
-    for _ in range(GENERATIONS):
+    for gen in range(GENERATIONS):
         for _ in range(GAMES_PER_GEN):
             living_game = True
             while living_game:
@@ -228,10 +230,10 @@ if __name__ == '__main__':
                         if event.key == pygame.K_SPACE:
                             if graphics_on:
                                 graphics_on = False
-                                print("Graphics turned OFF")
+                                print("Graphics turned OFF", file=sys.stderr)
                             else:
                                 graphics_on = True
-                                print("Graphics turned ON")
+                                print("Graphics turned ON", file=sys.stderr)
 
                 if graphics_on:
                     screen.fill(BACKGROUND_COLOR)
@@ -269,33 +271,31 @@ if __name__ == '__main__':
                             game.draw(screen)
                 if graphics_on:
                     pygame.display.flip()
+                    clock.tick(60)
             for i in range(len(games)):
                 score = games[i].score
                 games[i] = Game(games[i].left_ai)
                 games[i].score = score
         games.sort(key=lambda game: game.score, reverse=True)
-        new_games = games[:SELECT_NUM]
+        new_games = []
 
-        for i in range(len(new_games)):
-            print(new_games[i].score)
-            new_games[i] = Game(games[i].left_ai)
+        print(f'Generation {gen + 1} results')
+        for i in range(SELECT_NUM):
+            print(games[i].score)
+            new_games.append(Game(games[i].left_ai))
         print('============================')
+        sys.stdout.flush()
         
         # create next generation
+        probabilities = get_probabilities(games)
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
-            for i in range(SELECT_NUM):
-                probabilities = get_softmax_probabilities(new_games)
-                parent1 = np.random.choice(new_games, p=probabilities)
-                parent2 = np.random.choice(new_games, p=probabilities)
-                # print("parent 1 score:", parent1.score, "parent 2 score:", parent2.score)
+            parent1 = np.random.choice(games, p=probabilities)
+            parent2 = np.random.choice(games, p=probabilities)
+            if parent1 == parent2:
+                continue
+            crossover_child = crossover(parent1.left_ai, parent2.left_ai)
+            new_games.append(Game(crossover_child.mutate()))
 
-                # does this work to crossover then mutate?
-                crossover_child = Game(new_games[i].left_ai.crossover(parent1, parent2)) 
-                new_games.append(Game(crossover_child.left_ai.mutate()))
-
-                # new_games.append(Game(new_games[i].left_ai.mutate()))
-        while len(new_games) > NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
-            new_games.remove(random.choice(new_games))
         for i in range(RANDOM_NETWORKS_PER_GEN):
             new_games.append(Game(NeuralNetwork()))
         games = new_games

@@ -27,6 +27,8 @@ AI_PLAYER = True
 left_score = 0
 right_score = 0
 
+score = 0
+
 class AIPlayer:
     def __init__(self):
         self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
@@ -160,6 +162,7 @@ class Ball:
         return False
 
     def collision_left(self, left_paddle, ball):
+        global score
         ball_slope = self.y_velocity / self.x_velocity
         collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
         if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
@@ -176,11 +179,15 @@ class Ball:
         
         # this is for if the ball was missed
         else:
+            score -= abs(collision_y - (left_paddle.y + PADDLE_HEIGHT / 2)) / SCREEN_HEIGHT * 1
+            print(score)
             global right_score
             right_score += 1
             print("Right scored!")
             return True
         
+        score += 1
+        print(score)
         if AI_PLAYER:
             global ai
             ai.calculate_target(ball)
@@ -230,6 +237,7 @@ if __name__ == '__main__':
 
         if ball.update(left_paddle, right_paddle):
             print(f"Right: {right_score}\nLeft: {left_score}")
+            
             ball = Ball()
             if AI_PLAYER:
                 ai.calculate_target(ball)

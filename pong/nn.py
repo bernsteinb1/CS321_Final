@@ -62,18 +62,20 @@ class NeuralNetwork:
             
         return new_network
     
-    def crossover(self, parent1, parent2):
-        """Performs uniform crossover using given parents to create and return child neural network object.
-        Parents must be Game objects."""
-        child = deepcopy(self)
-        for i in range(len(child.weights)):
-            for row in range(child.weights[i].shape[0]):
-                for col in range(child.weights[i].shape[1]):
-                    if random.random() < 0.5:
-                        child.weights[i][row][col] = parent1.left_ai.weights[i][row][col]
-                    else:
-                        child.weights[i][row][col] = parent2.left_ai.weights[i][row][col]
-        return child
+def crossover(parent1, parent2):
+    """Performs uniform crossover using given parents to create and return child neural network object.
+    Parents must be Game objects."""
+    child = deepcopy(parent1)
+    for i in range(len(child.weights)):
+        for row in range(child.weights[i].shape[0]):
+            for col in range(child.weights[i].shape[1]):
+                if random.random() < 0.5:
+                    child.weights[i][row][col] = parent2.weights[i][row][col]
+    for i in range(len(child.biases)):
+        for j in range(child.biases[i].shape[0]):
+            if random.random() < 0.5:
+                child.biases[i][j] = parent2.biases[i][j]
+    return child
 
 
 if __name__ == '__main__':
