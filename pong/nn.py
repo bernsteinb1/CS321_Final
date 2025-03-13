@@ -64,7 +64,7 @@ class NeuralNetwork:
     
 def crossover(parent1, parent2):
     """Performs uniform crossover using given parents to create and return child neural network object.
-    Parents must be Game objects."""
+    Parents must be NeuralNetwork objects."""
     child = deepcopy(parent1)
     for i in range(len(child.weights)):
         for row in range(child.weights[i].shape[0]):
