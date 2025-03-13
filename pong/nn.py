@@ -4,7 +4,7 @@ import time
 from copy import deepcopy
 import random
 
-INPUT_NODES = 6
+INPUT_NODES = 5
 HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
 OUTPUT_NODES = 2
 
