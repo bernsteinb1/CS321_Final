@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+import pickle
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -29,36 +30,6 @@ right_score = 0
 
 score = 0
 
-class AIPlayer:
-    def __init__(self):
-        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-    
-    def calculate_target(self, ball):
-        x_coord = ball.x
-        y_coord = ball.y
-        x_step = 1
-        y_step = ball.y_velocity / ball.x_velocity
-        while x_coord + BALL_RADIUS < SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH:
-            x_coord += x_step
-            y_coord += y_step
-            if y_coord < BALL_RADIUS or y_coord > SCREEN_HEIGHT - BALL_RADIUS:
-                y_adj = SCREEN_HEIGHT - BALL_RADIUS - y_coord if y_coord > SCREEN_HEIGHT - BALL_RADIUS else BALL_RADIUS - y_coord
-                y_coord += 2 * y_adj
-                y_step *= -1
-        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS + 1, int(PADDLE_HEIGHT / 2) + BALL_RADIUS - 1) - PADDLE_HEIGHT / 2 # can't be equal to ball radius so we add 1
-
-    def reset_target(self):
-        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-
-    def get_move(self, paddle):
-        if paddle.y < int(self.target_y):
-            return -1
-        if paddle.y > int(self.target_y):
-            return 1
-        return 0
-            
-ai = AIPlayer() if AI_PLAYER else None
-
 class Paddle:
     def __init__(self, side: str):
         """Creates a paddle on one of the sides
@@ -84,15 +55,11 @@ class Paddle:
         """Moves paddle up capping at top of screen
         """
         self.y = max(self.y - PADDLE_SPEED, 0)
-        if AI_PLAYER and self.x != PADDLE_DIST_FROM_EDGE:
-            self.y = max(self.y, ai.target_y)
     
     def move_down(self):
         """Moves paddle down capping at bottom of screen
             """
         self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
-        if AI_PLAYER and self.x != PADDLE_DIST_FROM_EDGE:
-            self.y = min(self.y, ai.target_y)
 
 class Ball:
     def __init__(self):
@@ -156,9 +123,6 @@ class Ball:
             print("Left scored!")
             return True
     
-        if AI_PLAYER:
-            global ai
-            ai.reset_target()
         return False
 
     def collision_left(self, left_paddle, ball):
@@ -188,9 +152,6 @@ class Ball:
         
         score += 1
         print(score)
-        if AI_PLAYER:
-            global ai
-            ai.calculate_target(ball)
         return False
     
     def draw(self, window):
@@ -203,11 +164,11 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
+    with open('champion.pickle', 'rb') as champ:
+        ai = pickle.load(champ)
 
     # set up game
     ball = Ball()
-    if AI_PLAYER:
-        ai.calculate_target(ball)
     left_paddle = Paddle('l')
     right_paddle = Paddle('r')
 
@@ -220,27 +181,26 @@ if __name__ == '__main__':
             
         keys = pygame.key.get_pressed()
         if not AI_PLAYER:
-            if keys[pygame.K_DOWN]:
-                right_paddle.move_down()
-            if keys[pygame.K_UP]:
-                right_paddle.move_up()
+            if keys[pygame.K_w]:
+                left_paddle.move_up()
+            if keys[pygame.K_s]:
+                left_paddle.move_down()
         else:
-            mv = ai.get_move(right_paddle)
-            if mv == 1:
-                right_paddle.move_up()
-            elif mv == -1:
-                right_paddle.move_down()
-        if keys[pygame.K_w]:
-            left_paddle.move_up()
-        if keys[pygame.K_s]:
-            left_paddle.move_down()
+            inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, left_paddle.y + PADDLE_HEIGHT / 2, right_paddle.y + PADDLE_HEIGHT / 2] 
+            up, down = ai.run(inp)
+            if up > 0 and not down > 0:
+                left_paddle.move_up()
+            if down > 0 and not up > 0:
+                left_paddle.move_down()
+        if keys[pygame.K_UP]:
+            right_paddle.move_up()
+        if keys[pygame.K_DOWN]:
+            right_paddle.move_down()
 
         if ball.update(left_paddle, right_paddle):
             print(f"Right: {right_score}\nLeft: {left_score}")
             
             ball = Ball()
-            if AI_PLAYER:
-                ai.calculate_target(ball)
 
         # draw game components
         screen.fill(BACKGROUND_COLOR)

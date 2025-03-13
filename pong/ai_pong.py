@@ -4,6 +4,7 @@ import math
 import sys
 import numpy as np
 from nn import NeuralNetwork, crossover
+import pickle
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -27,10 +28,11 @@ PADDLE_SPEED = 3
 
 NUM_AGENTS = 1000
 
-GENERATIONS = 100
+GENERATIONS = 1000
 SELECT_NUM = 10
 RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
 GAMES_PER_GEN = 5
+TOURNAMENT_SIZE = 10
 
 STILLNESS_PUNISHMENT_FACTOR = 0
 DISTANCE_PUNISHMENT_FACTOR = 0
@@ -197,14 +199,6 @@ class Game:
         self.has_moved = False
         self.right_ai.calculate_target(self.ball)
         return False
-    
-def get_probabilities(games):
-    fitness_scores = np.array([game.score for game in games])
-    small = np.min(fitness_scores)
-    if small < 0:
-        fitness_scores -= small
-    probabilities = fitness_scores / np.sum(fitness_scores)
-    return probabilities
         
 
 if __name__ == '__main__':
@@ -214,6 +208,9 @@ if __name__ == '__main__':
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
     graphics_on = True
+
+    best_nn = None
+    best_score = -math.inf
     
     games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
     
@@ -277,6 +274,9 @@ if __name__ == '__main__':
                 games[i] = Game(games[i].left_ai)
                 games[i].score = score
         games.sort(key=lambda game: game.score, reverse=True)
+        if games[0].score > best_score:
+            best_score = games[0].score
+            best_nn = games[0].left_ai
         new_games = []
 
         print(f'Generation {gen + 1} results')
@@ -286,11 +286,13 @@ if __name__ == '__main__':
         print('============================')
         sys.stdout.flush()
         
-        # create next generation
-        probabilities = get_probabilities(games)
+        # create next generation using tournament selection
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
-            parent1 = np.random.choice(games, p=probabilities)
-            parent2 = np.random.choice(games, p=probabilities)
+            par_1_options = np.random.choice(games, TOURNAMENT_SIZE, False)
+            par_2_options = np.random.choice(games, TOURNAMENT_SIZE, False)
+
+            parent1 = max(par_1_options, key=lambda x: x.score)
+            parent2 = max(par_2_options, key=lambda x: x.score)
             if parent1 == parent2:
                 continue
             crossover_child = crossover(parent1.left_ai, parent2.left_ai)
@@ -299,4 +301,7 @@ if __name__ == '__main__':
         for i in range(RANDOM_NETWORKS_PER_GEN):
             new_games.append(Game(NeuralNetwork()))
         games = new_games
+
+    with open('champion.pickle', 'wb') as f:
+        pickle.dump(best_nn, f)
     pygame.quit()
