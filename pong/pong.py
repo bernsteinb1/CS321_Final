@@ -156,7 +156,37 @@ class Ball:
     
     def draw(self, window):
         pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
-        
+
+
+class AIPlayer:
+    def __init__(self):
+        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+    
+    def calculate_target(self, ball):
+        x_coord = ball.x
+        y_coord = ball.y
+        x_step = 1
+        y_step = ball.y_velocity / ball.x_velocity
+        while x_coord + BALL_RADIUS < SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH:
+            x_coord += x_step
+            y_coord += y_step
+            if y_coord < BALL_RADIUS or y_coord > SCREEN_HEIGHT - BALL_RADIUS:
+                y_adj = SCREEN_HEIGHT - BALL_RADIUS - y_coord if y_coord > SCREEN_HEIGHT - BALL_RADIUS else BALL_RADIUS - y_coord
+                y_coord += 2 * y_adj
+                y_step *= -1
+        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS + 1, int(PADDLE_HEIGHT / 2) + BALL_RADIUS - 1) - PADDLE_HEIGHT / 2 # can't be equal to ball radius so we add 1
+
+    def reset_target(self):
+        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
+
+    def get_move(self, paddle):
+        if paddle.y < int(self.target_y):
+            return -1
+        if paddle.y > int(self.target_y):
+            return 1
+        return 0
+            
+# ai = AIPlayer() if AI_PLAYER else None
 
 if __name__ == '__main__':
     # from PyGame website
@@ -199,8 +229,9 @@ if __name__ == '__main__':
 
         if ball.update(left_paddle, right_paddle):
             print(f"Right: {right_score}\nLeft: {left_score}")
-            
             ball = Ball()
+            left_paddle = Paddle('l')
+            right_paddle = Paddle('r')
 
         # draw game components
         screen.fill(BACKGROUND_COLOR)
