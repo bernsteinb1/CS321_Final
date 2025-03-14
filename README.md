@@ -9,6 +9,7 @@ A repository containing code for an AI agent to play Flappy Bird and Pong.
 - On a command line from within the relevant directory:
   - `python3 ai_flappy_bird.py`
   - `python3 ai_pong.py`
+  - Generally: `python3 <name of file>`
 
 # Miscellaneous files:
 - results.txt
