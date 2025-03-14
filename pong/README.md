@@ -1,5 +1,5 @@
 # Human Playable Pong
-pong.py contains a human playable pong game. By default, the game is set to play against our trained AI.
+pong.py contains a human playable pong game. By default, the left paddle played by our trained AI, and the right paddle is a human player.
 
 To play the game run:
 - `python3 pong.py`
