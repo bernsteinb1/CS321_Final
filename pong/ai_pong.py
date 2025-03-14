@@ -39,6 +39,7 @@ DISTANCE_PUNISHMENT_FACTOR = 0
 class Ball:
     def __init__(self):
         paddle_y = -1
+        # randomize starting position until paddle would be at a legal position
         while paddle_y < 0 or paddle_y + PADDLE_HEIGHT > SCREEN_HEIGHT:
             self.x = PADDLE_DIST_FROM_EDGE + PADDLE_WIDTH + BALL_RADIUS
             self.y = random.randint(BALL_RADIUS, SCREEN_HEIGHT - BALL_RADIUS)
@@ -82,7 +83,7 @@ class Ball:
             and self.x + BALL_RADIUS <= right_paddle and self.x - BALL_RADIUS >= left_paddle:
             # see if ball collided or was missed
             res = self.collision_right() if self.x + self.x_velocity + BALL_RADIUS >= right_paddle else self.collision_left()
-            if res != None:
+            if res is not None:
                 return res
             # how much the ball will have moved when it hits a paddle
             moved_proportion = (right_paddle - (self.x + BALL_RADIUS)) / self.x_velocity
@@ -98,38 +99,6 @@ class Ball:
         else:
             self.y = new_y
 
-class Paddle:
-    def __init__(self, side):
-        if side == 'l':
-            self.x = PADDLE_DIST_FROM_EDGE
-        else:
-            self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH
-    
-    def draw(self, window):
-        pygame.draw.rect(window, PADDLE_COLOR, (self.x, self.y, PADDLE_WIDTH, PADDLE_HEIGHT))
-
-    def move_up(self, target=None):
-        self.y = max(self.y - PADDLE_SPEED, 0)
-        if target is not None:
-            self.y = max(self.y, target)
-    
-    def move_down(self, target=None):
-        self.y = min(self.y + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
-        if target is not None:
-            self.y = min(self.y, target)
-
-class Game:
-    def __init__(self, neural_net):
-        self.left_paddle = Paddle('l')
-        self.left_ai = neural_net
-        self.score = 0
-
-    def draw(self, screen):
-        self.left_paddle.draw(screen)
-
-    def reward(self, ball_update):
-        self.score += 1 - abs(self.left_paddle.y - ball_update) / SCREEN_HEIGHT
-
 
 if __name__ == '__main__':
     # from PyGame website
@@ -142,7 +111,8 @@ if __name__ == '__main__':
     best_nn = None
     best_score = -math.inf
     
-    games = [Game(NeuralNetwork()) for _ in range(NUM_AGENTS)]
+    # game tuple takes form (network, paddle_y, score)
+    games = [[NeuralNetwork(), 0, 0] for _ in range(NUM_AGENTS)]
     
     for gen in range(GENERATIONS):
         for _ in range(TRIALS_PER_GEN):
@@ -150,10 +120,9 @@ if __name__ == '__main__':
             angle = math.degrees(math.atan(ball.y_velocity / ball.x_velocity))
             paddle_y = ball.y - angle / BALL_MAX_ANGLE * (PADDLE_HEIGHT / 2 + BALL_RADIUS) - PADDLE_HEIGHT / 2
             for game in games:
-                game.left_paddle.y = paddle_y
+                game[1] = paddle_y
 
-            living_game = True
-            while living_game:
+            while True:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         sys.exit()
@@ -173,53 +142,50 @@ if __name__ == '__main__':
 
                 # 1 tick for each agent
                 for game in games:
-                    inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, game.left_paddle.y + PADDLE_HEIGHT / 2] 
-                    up, down = game.left_ai.run(inp)
+                    inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, game[1] + PADDLE_HEIGHT / 2] 
+                    up, down = game[0].run(inp)
                     if up > 0 and not down > 0:
-                        game.left_paddle.move_up()
+                        game[1] = max(game[1] - PADDLE_SPEED, 0)
                     if down > 0 and not up > 0:
-                        game.left_paddle.move_down()                                                
+                        game[1] = min(game[1] + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
                     if graphics_on:
-                        game.draw(screen)
+                        pygame.draw.rect(screen, PADDLE_COLOR, (PADDLE_DIST_FROM_EDGE, game[1], PADDLE_WIDTH, PADDLE_HEIGHT))
                 ball_update = ball.update()
-                if ball_update != None:
+                if ball_update is not None:
                     for game in games:
-                        game.reward(ball_update)
+                        if ball_update > game[1] - BALL_RADIUS and ball_update < game[1] + BALL_RADIUS:
+                            game[2] += 1
                     break
                 if graphics_on:
                     pygame.display.flip()
                     clock.tick(60)
-            for i in range(len(games)):
-                score = games[i].score
-                games[i] = Game(games[i].left_ai)
-                games[i].score = score
-        games.sort(key=lambda game: game.score, reverse=True)
-        if games[0].score > best_score:
-            best_score = games[0].score
-            best_nn = games[0].left_ai
+        games.sort(key=lambda game: game[2], reverse=True)
+        if games[0][2] > best_score:
+            best_score = games[0][2]
+            best_nn = games[0][0]
         new_games = []
 
         print(f'Generation {gen + 1} results')
         for i in range(SELECT_NUM):
-            print(games[i].score)
-            new_games.append(Game(games[i].left_ai))
+            print(games[i][2])
+            new_games.append([games[i][0], 0, 0])
         print('============================')
         sys.stdout.flush()
         
         # create next generation using tournament selection
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
-            parent_1_options = np.random.choice(games, TOURNAMENT_SIZE, False)
-            parent_2_options = np.random.choice(games, TOURNAMENT_SIZE, False)
+            parent_1_options = random.sample(games, TOURNAMENT_SIZE)
+            parent_2_options = random.sample(games, TOURNAMENT_SIZE)
 
-            parent1 = max(parent_1_options, key=lambda x: x.score)
-            parent2 = max(parent_2_options, key=lambda x: x.score)
+            parent1 = max(parent_1_options, key=lambda x: x[2])
+            parent2 = max(parent_2_options, key=lambda x: x[2])
             if parent1 == parent2:
                 continue
-            crossover_child = crossover(parent1.left_ai, parent2.left_ai)
-            new_games.append(Game(crossover_child.mutate()))
+            crossover_child = crossover(parent1[0], parent2[0])
+            new_games.append([crossover_child, 0, 0])
 
         for i in range(RANDOM_NETWORKS_PER_GEN):
-            new_games.append(Game(NeuralNetwork()))
+            new_games.append([NeuralNetwork(), 0, 0])
         games = new_games
 
     with open('champion.pickle', 'wb') as f:

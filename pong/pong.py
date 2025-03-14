@@ -216,7 +216,7 @@ if __name__ == '__main__':
             if keys[pygame.K_s]:
                 left_paddle.move_down()
         else:
-            inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, left_paddle.y + PADDLE_HEIGHT / 2, right_paddle.y + PADDLE_HEIGHT / 2] 
+            inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, left_paddle.y + PADDLE_HEIGHT / 2] 
             up, down = ai.run(inp)
             if up > 0 and not down > 0:
                 left_paddle.move_up()
