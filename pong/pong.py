@@ -194,7 +194,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
-    with open('champion.pickle', 'rb') as champ:
+    with open('last_gen.pickle', 'rb') as champ:
         ai = pickle.load(champ)
 
     # set up game

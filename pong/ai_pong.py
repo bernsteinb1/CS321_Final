@@ -1,10 +1,10 @@
-import pygame
-import random
 import math
+import random
 import sys
-import numpy as np
 from nn import NeuralNetwork, crossover
 import pickle
+import multiprocessing
+from functools import partial
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
@@ -30,7 +30,7 @@ NUM_AGENTS = 1000
 GENERATIONS = 30
 SELECT_NUM = 10
 RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
-TRIALS_PER_GEN = 20
+TRIALS_PER_GEN = 1000
 TOURNAMENT_SIZE = 10
 
 STILLNESS_PUNISHMENT_FACTOR = 0
@@ -55,9 +55,6 @@ class Ball:
         angle = math.radians(angle)
         self.x_velocity = BALL_START_SPEED * math.cos(angle)
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
-
-    def draw(self, window):
-        pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
 
     def collision_right(self):
         ball_slope = self.y_velocity / self.x_velocity
@@ -99,95 +96,74 @@ class Ball:
         else:
             self.y = new_y
 
+def do_trial(neural_nets, _):
+    ball = Ball()
+    angle = math.degrees(math.atan(ball.y_velocity / ball.x_velocity))
+    paddle_y = ball.y - angle / BALL_MAX_ANGLE * (PADDLE_HEIGHT / 2 + BALL_RADIUS) - PADDLE_HEIGHT / 2
+
+    paddles = [paddle_y for _ in range(len(neural_nets))]
+    while True:
+        for i in range(len(neural_nets)):
+            inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, paddles[i] + PADDLE_HEIGHT / 2] 
+            up, down = neural_nets[i].run(inp)
+            if up > 0 and not down > 0:
+                paddles[i] = max(paddles[i] - PADDLE_SPEED, 0)
+            if down > 0 and not up > 0:
+                paddles[i] = min(paddles[i] + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
+        ball_update = ball.update()
+        if ball_update is not None:
+            rewards = [1 - abs(paddle + PADDLE_HEIGHT / 2 - ball_update) / SCREEN_HEIGHT for paddle in paddles]
+            return rewards
+
 
 if __name__ == '__main__':
-    # from PyGame website
-    pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Bryce Ruben: Final Pong")
-    clock = pygame.time.Clock()
-    graphics_on = True
-
     best_nn = None
     best_score = -math.inf
+
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
     
     # game tuple takes form (network, paddle_y, score)
-    games = [[NeuralNetwork(), 0, 0] for _ in range(NUM_AGENTS)]
+    games = [NeuralNetwork() for _ in range(NUM_AGENTS)]
     
     for gen in range(GENERATIONS):
-        for _ in range(TRIALS_PER_GEN):
-            ball = Ball()
-            angle = math.degrees(math.atan(ball.y_velocity / ball.x_velocity))
-            paddle_y = ball.y - angle / BALL_MAX_ANGLE * (PADDLE_HEIGHT / 2 + BALL_RADIUS) - PADDLE_HEIGHT / 2
-            for game in games:
-                game[1] = paddle_y
-
-            while True:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        sys.exit()
-
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_SPACE:
-                            if graphics_on:
-                                graphics_on = False
-                                print("Graphics turned OFF", file=sys.stderr)
-                            else:
-                                graphics_on = True
-                                print("Graphics turned ON", file=sys.stderr)
-
-                if graphics_on:
-                    screen.fill(BACKGROUND_COLOR)
-                    ball.draw(screen)
-
-                # 1 tick for each agent
-                for game in games:
-                    inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, game[1] + PADDLE_HEIGHT / 2] 
-                    up, down = game[0].run(inp)
-                    if up > 0 and not down > 0:
-                        game[1] = max(game[1] - PADDLE_SPEED, 0)
-                    if down > 0 and not up > 0:
-                        game[1] = min(game[1] + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
-                    if graphics_on:
-                        pygame.draw.rect(screen, PADDLE_COLOR, (PADDLE_DIST_FROM_EDGE, game[1], PADDLE_WIDTH, PADDLE_HEIGHT))
-                ball_update = ball.update()
-                if ball_update is not None:
-                    for game in games:
-                        if ball_update > game[1] - BALL_RADIUS and ball_update < game[1] + BALL_RADIUS:
-                            game[2] += 1
-                    break
-                if graphics_on:
-                    pygame.display.flip()
-                    clock.tick(60)
-        games.sort(key=lambda game: game[2], reverse=True)
-        if games[0][2] > best_score:
-            best_score = games[0][2]
-            best_nn = games[0][0]
+        # for _ in range(TRIALS_PER_GEN):
+        rewards = pool.map(partial(do_trial, games), range(TRIALS_PER_GEN))
+        game_scores = [[game, 0] for game in games]
+        for reward in rewards:
+            for i in range(len(reward)):
+                game_scores[i][1] += reward[i]
+            
+        game_scores.sort(key=lambda game: game[1], reverse=True)
+        if game_scores[0][1] > best_score:
+            best_score = game_scores[0][1]
+            best_nn = game_scores[0][0]
         new_games = []
 
         print(f'Generation {gen + 1} results')
         for i in range(SELECT_NUM):
-            print(games[i][2])
-            new_games.append([games[i][0], 0, 0])
+            print(game_scores[i][1])
+            new_games.append(game_scores[i][0])
         print('============================')
         sys.stdout.flush()
         
         # create next generation using tournament selection
         while len(new_games) < NUM_AGENTS - RANDOM_NETWORKS_PER_GEN:
-            parent_1_options = random.sample(games, TOURNAMENT_SIZE)
-            parent_2_options = random.sample(games, TOURNAMENT_SIZE)
+            parent_1_options = random.sample(game_scores, TOURNAMENT_SIZE)
+            parent_2_options = random.sample(game_scores, TOURNAMENT_SIZE)
 
-            parent1 = max(parent_1_options, key=lambda x: x[2])
-            parent2 = max(parent_2_options, key=lambda x: x[2])
+            parent1 = max(parent_1_options, key=lambda x: x[1])
+            parent2 = max(parent_2_options, key=lambda x: x[1])
             if parent1 == parent2:
                 continue
             crossover_child = crossover(parent1[0], parent2[0])
-            new_games.append([crossover_child, 0, 0])
+            new_games.append(crossover_child)
 
         for i in range(RANDOM_NETWORKS_PER_GEN):
-            new_games.append([NeuralNetwork(), 0, 0])
+            new_games.append(NeuralNetwork())
         games = new_games
 
+    pool.close()
     with open('champion.pickle', 'wb') as f:
         pickle.dump(best_nn, f)
-    pygame.quit()
+    with open('last_gen.pickle', 'wb') as f:
+        pickle.dump(games[0], f)
