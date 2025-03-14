@@ -16,6 +16,6 @@ A repository containing code for an AI agent to play Flappy Bird and Pong.
   - Shows the results of the last training of the neural network from running ai_pong.py
 - champion.pickle
   - Contains the best (highest scoring) overall AI player trained from running ai_pong.py
-- last-gen.pickle
+- last_gen.pickle
   - Contains the best AI player from the last generation of agents trained from running ai_pong.py
-- champion.pickle and last-gen.pickle can be used within pong.py to set the enemy AI player
+- champion.pickle and last_gen.pickle can be used within pong.py to set the enemy AI player
