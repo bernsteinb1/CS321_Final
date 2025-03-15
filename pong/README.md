@@ -12,7 +12,7 @@ Controls:
   - up arrow: move up
   - down arrow: move down
 
-If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. **Notably**, there is a AI_PLAYER variable. If this variable is True, the right paddle will be played by an AI agent trained by our neural network via neuroevolution. The AI that is played against can be set in the main function. 
+If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. **Notably**, there is a AI_PLAYER variable. If this variable is True, the left paddle will be played by an AI agent trained by our neural network via neuroevolution. The AI that is played against can be set in the main function. 
 
 # AI Pong
 ai_pong.py trains our neural network to play pong. Graphics have been turned off for this version to train the AI faster.
