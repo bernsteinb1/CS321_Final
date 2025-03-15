@@ -28,8 +28,6 @@ AI_PLAYER = True
 left_score = 0
 right_score = 0
 
-score = 0
-
 class Paddle:
     def __init__(self, side: str):
         """Creates a paddle on one of the sides
@@ -63,6 +61,8 @@ class Paddle:
 
 class Ball:
     def __init__(self):
+        """Creates centered Ball object with random starting velocity.
+        """
         self.x = SCREEN_WIDTH / 2
         self.y = SCREEN_HEIGHT / 2
         self.randomize_start_vel()
@@ -78,12 +78,22 @@ class Ball:
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
 
     def update(self, left_paddle, right_paddle):
+        """Calculates all updates for the game, including ball motion, wall collision, and paddle collision. Results
+        give info about whether a player scored.
+
+        Args:
+            left_paddle (Paddle): the left paddle object
+            right_paddle (Paddle): the right paddle object.
+
+        Returns:
+            bool: True if someone scored
+        """
         moved_proportion = 0  # at the beginning the ball has not moved at all
         # this gets called if the ball could possibly collide with a paddle.
         if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x or self.x + self.x_velocity - BALL_RADIUS <= left_paddle.x + PADDLE_WIDTH) \
             and self.x + BALL_RADIUS <= right_paddle.x and self.x - BALL_RADIUS >= left_paddle.x + PADDLE_WIDTH:
             # see if ball collided or was missed
-            res = self.collision_right(right_paddle) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle, ball)
+            res = self.collision_right(right_paddle) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle.x else self.collision_left(left_paddle)
             if res:
                 return True
             # how much the ball will have moved when it hits a paddle
@@ -102,6 +112,14 @@ class Ball:
         return False
         
     def collision_right(self, right_paddle):
+        """Handles collision on right side
+
+        Args:
+            right_paddle (Paddle): the right paddle
+
+        Returns:
+            bool: True if left scored.
+        """
         ball_slope = self.y_velocity / self.x_velocity
         collision_y = self.y + ball_slope * (right_paddle.x - (self.x + BALL_RADIUS))
         if collision_y + BALL_RADIUS > right_paddle.y and collision_y - BALL_RADIUS < right_paddle.y + PADDLE_HEIGHT:
@@ -125,8 +143,15 @@ class Ball:
     
         return False
 
-    def collision_left(self, left_paddle, ball):
-        global score
+    def collision_left(self, left_paddle):
+        """Handles collision on left side
+
+        Args:
+            left_paddle (Paddle): the left paddle
+
+        Returns:
+            bool: True if right scored.
+        """
         ball_slope = self.y_velocity / self.x_velocity
         collision_y = self.y + ball_slope * (left_paddle.x + PADDLE_WIDTH - (self.x - BALL_RADIUS))
         if collision_y + BALL_RADIUS > left_paddle.y and collision_y - BALL_RADIUS < left_paddle.y + PADDLE_HEIGHT:
@@ -143,50 +168,16 @@ class Ball:
         
         # this is for if the ball was missed
         else:
-            score -= abs(collision_y - (left_paddle.y + PADDLE_HEIGHT / 2)) / SCREEN_HEIGHT * 1
-            print(score)
             global right_score
             right_score += 1
             print("Right scored!")
             return True
         
-        score += 1
-        print(score)
         return False
     
     def draw(self, window):
         pygame.draw.circle(window, BALL_COLOR, (self.x, self.y), BALL_RADIUS)
 
-
-class AIPlayer:
-    def __init__(self):
-        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-    
-    def calculate_target(self, ball):
-        x_coord = ball.x
-        y_coord = ball.y
-        x_step = 1
-        y_step = ball.y_velocity / ball.x_velocity
-        while x_coord + BALL_RADIUS < SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH:
-            x_coord += x_step
-            y_coord += y_step
-            if y_coord < BALL_RADIUS or y_coord > SCREEN_HEIGHT - BALL_RADIUS:
-                y_adj = SCREEN_HEIGHT - BALL_RADIUS - y_coord if y_coord > SCREEN_HEIGHT - BALL_RADIUS else BALL_RADIUS - y_coord
-                y_coord += 2 * y_adj
-                y_step *= -1
-        self.target_y = y_coord + random.randint(int(-PADDLE_HEIGHT / 2) - BALL_RADIUS + 1, int(PADDLE_HEIGHT / 2) + BALL_RADIUS - 1) - PADDLE_HEIGHT / 2 # can't be equal to ball radius so we add 1
-
-    def reset_target(self):
-        self.target_y = SCREEN_HEIGHT / 2 - PADDLE_HEIGHT / 2
-
-    def get_move(self, paddle):
-        if paddle.y < int(self.target_y):
-            return -1
-        if paddle.y > int(self.target_y):
-            return 1
-        return 0
-            
-# ai = AIPlayer() if AI_PLAYER else None
 
 if __name__ == '__main__':
     # from PyGame website
@@ -194,6 +185,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Bryce Ruben: Final Pong")
     clock = pygame.time.Clock()
+    # to use champion.pickle or last_gen.pickle, set their filepath below.
     with open('last_gen.pickle', 'rb') as champ:
         ai = pickle.load(champ)
 
@@ -216,6 +208,7 @@ if __name__ == '__main__':
             if keys[pygame.K_s]:
                 left_paddle.move_down()
         else:
+            # run inputs through neural network to get action
             inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, left_paddle.y + PADDLE_HEIGHT / 2] 
             up, down = ai.run(inp)
             if up > 0 and not down > 0:

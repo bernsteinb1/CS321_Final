@@ -15,7 +15,16 @@ Controls:
 If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. **Notably**, there is a AI_PLAYER variable. If this variable is True, the left paddle will be played by an AI agent trained by our neural network via neuroevolution. The AI that is played against can be set in the main function. 
 
 # AI Pong
+We train Pong AIs by running a series of simulated trials where the ball starts in a random configuration immediately
+after the AI would have hit it. The ball is then deflected off the right side at a random angle and rewards are assigned
+by a paddle's proximity to where the ball hit on the left side. Every other generation we train exclusively on the largest
+possible angle to improve the AI's predictive capability and minimize weakness.
+
 ai_pong.py trains our neural network to play pong. Graphics have been turned off for this version to train the AI faster.
+This is a greedy program; it uses all CPU cores and will max out each of them for the duration of the runtime. On an
+M1 Pro Macbook Pro 2021, this code takes about 3 hours to run completion. When finished, champion.pickle and last_gen.pickle
+are overwritten without consideration of whether there is already data in these files. These files store the neural networks
+that performed best overall (champion.pickle) and best in the newest generation (last_gen.pickle).
 
 To train the AI, run:
 - `python3 ai_pong.py`

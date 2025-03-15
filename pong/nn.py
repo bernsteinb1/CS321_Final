@@ -8,9 +8,9 @@ INPUT_NODES = 5
 HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
 OUTPUT_NODES = 2
 
-MUTATION_RATE = .05
-REPLACEMENT_RATE = .005
-STD = .01
+MUTATION_RATE = .05  # how often a weight or bias is modified when mutation occurs
+REPLACEMENT_RATE = .005  # how often a weight or bias is completely replaced. This is dependent on MUTATION_RATE occuring first.
+STD = .01  # standard deviation of modification value to weights or biases.
 
 class NeuralNetwork:
     def __init__(self):
@@ -45,6 +45,11 @@ class NeuralNetwork:
         return data[0] if len(data) == 1 else data
     
     def mutate(self):
+        """Perform mutation on a neural network and return mutated network as a new NeuralNetwork object.
+
+        Returns:
+            NeuralNetwork: mutated network
+        """
         new_network = deepcopy(self)
         for i in range(len(new_network.weights)):
             adjustments = np.zeros_like(new_network.weights[i])

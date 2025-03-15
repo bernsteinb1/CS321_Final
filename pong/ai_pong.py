@@ -8,10 +8,7 @@ from functools import partial
 
 # changing any of these will change something about the game.
 # any changes within reason will not cause an error (something like making the games width smaller than the paddle's width might cause a problem)
-# all values should be integers.
-BACKGROUND_COLOR = (0, 0, 0)
-PADDLE_COLOR = (255, 255, 255)
-BALL_COLOR = (0, 200, 255)
+# all values should be integers. These values should match those in pong.py if you expect good AI performance.
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
@@ -22,22 +19,19 @@ PADDLE_DIST_FROM_EDGE = 5
 
 BALL_START_SPEED = 5
 BALL_MAX_ANGLE = 75
-
 PADDLE_SPEED = 3
 
-NUM_AGENTS = 1000
-
-GENERATIONS = 30
-SELECT_NUM = 10
+NUM_AGENTS = 1000  # how many agents to introduce each generation
+GENERATIONS = 50
+SELECT_NUM = 10  # how many agents automatically advance to the next generation without modification. Also impacts number of results printed.
 RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
-TRIALS_PER_GEN = 1000
-TOURNAMENT_SIZE = 10
-
-STILLNESS_PUNISHMENT_FACTOR = 0
-DISTANCE_PUNISHMENT_FACTOR = 0
+TRIALS_PER_GEN = 1000  # how many trials to run each generation 
+TOURNAMENT_SIZE = 10  # in tournament selection (https://en.wikipedia.org/wiki/Tournament_selection) the tournament size.
 
 class Ball:
     def __init__(self):
+        """Create ball object such that it has been hit in a possible way
+        """
         paddle_y = -1
         # randomize starting position until paddle would be at a legal position
         while paddle_y < 0 or paddle_y + PADDLE_HEIGHT > SCREEN_HEIGHT:
@@ -49,29 +43,49 @@ class Ball:
             paddle_y = self.y - angle / BALL_MAX_ANGLE * (PADDLE_HEIGHT / 2 + BALL_RADIUS) - PADDLE_HEIGHT / 2
 
     def randomize_start_vel(self):
-        """Randomizes start velocity for ball up to BALL_START_ANGLE
+        """Randomizes start velocity for ball up to BALL_MAX_ANGLE
         """
         angle = random.randint(-BALL_MAX_ANGLE, BALL_MAX_ANGLE)
         angle = math.radians(angle)
         self.x_velocity = BALL_START_SPEED * math.cos(angle)
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
 
-    def collision_right(self):
+    def collision_right(self, gen_num):
+        """In each trial, right collisions are certain. When it happens it will randomly set the velocity to somewhere
+        between -BALL_MAX_ANGLE and BALL_MAX_ANGLE. On even generations, it will always choose either -BALL_MAX_ANGLE or
+        BALL_MAX_ANGLE with no intermediate values.
+
+        Args:
+            gen_num (int): the generation number
+        """
         ball_slope = self.y_velocity / self.x_velocity
         collision_y = self.y + ball_slope * (SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH - (self.x + BALL_RADIUS))
         self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH - BALL_RADIUS
         self.y = collision_y
 
-        angle = random.randrange(-BALL_MAX_ANGLE, BALL_MAX_ANGLE) + 180
+        angle = random.randrange(-BALL_MAX_ANGLE, BALL_MAX_ANGLE) + 180 if gen_num % 2 == 0 else random.choice([-BALL_MAX_ANGLE, BALL_MAX_ANGLE]) + 180
         self.x_velocity = math.cos(math.radians(angle)) * BALL_START_SPEED
         self.y_velocity = math.sin(math.radians(angle)) * BALL_START_SPEED
 
     def collision_left(self):
+        """If the ball were to collide with the left side, returns the ball's collision location.
+
+        Returns:
+            float: where the ball hit the wall.
+        """
         ball_slope = self.y_velocity / self.x_velocity
         collision_y = self.y + ball_slope * (PADDLE_DIST_FROM_EDGE + PADDLE_WIDTH + BALL_RADIUS - (self.x - BALL_RADIUS))
         return collision_y
 
-    def update(self):
+    def update(self, gen_num):
+        """Moves ball and calls appropriate collision functions. Returns center of ball collision if trial is over.
+
+        Args:
+            gen_num (int): the generation number
+
+        Returns:
+            float: where the ball collides with the left wall.
+        """
         moved_proportion = 0  # at the beginning the ball has not moved at all
         # this gets called if the ball could possibly collide with a paddle.
         left_paddle = PADDLE_DIST_FROM_EDGE + PADDLE_WIDTH
@@ -79,7 +93,7 @@ class Ball:
         if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle or self.x + self.x_velocity - BALL_RADIUS <= left_paddle) \
             and self.x + BALL_RADIUS <= right_paddle and self.x - BALL_RADIUS >= left_paddle:
             # see if ball collided or was missed
-            res = self.collision_right() if self.x + self.x_velocity + BALL_RADIUS >= right_paddle else self.collision_left()
+            res = self.collision_right(gen_num) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle else self.collision_left()
             if res is not None:
                 return res
             # how much the ball will have moved when it hits a paddle
@@ -96,12 +110,24 @@ class Ball:
         else:
             self.y = new_y
 
-def do_trial(neural_nets, _):
+def do_trial(neural_nets, gen_num, _):
+    """_summary_
+
+    Args:
+        neural_nets (list[NeuralNetwork]): list of neural networks to play the game
+        gen_num (int): generation number
+        _ : dummy variable given by multiprocessing.map
+
+    Returns:
+        list[float]: A list of reward values for each neural network determined by the distance to the ball's collision
+        location.
+    """
     ball = Ball()
     angle = math.degrees(math.atan(ball.y_velocity / ball.x_velocity))
     paddle_y = ball.y - angle / BALL_MAX_ANGLE * (PADDLE_HEIGHT / 2 + BALL_RADIUS) - PADDLE_HEIGHT / 2
 
     paddles = [paddle_y for _ in range(len(neural_nets))]
+    # do frames until the ball gets back to the wall
     while True:
         for i in range(len(neural_nets)):
             inp = [ball.x, ball.y, ball.x_velocity, ball.y_velocity, paddles[i] + PADDLE_HEIGHT / 2] 
@@ -110,8 +136,9 @@ def do_trial(neural_nets, _):
                 paddles[i] = max(paddles[i] - PADDLE_SPEED, 0)
             if down > 0 and not up > 0:
                 paddles[i] = min(paddles[i] + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
-        ball_update = ball.update()
+        ball_update = ball.update(gen_num)
         if ball_update is not None:
+            # reward closer paddles more heavily
             rewards = [1 - abs(paddle + PADDLE_HEIGHT / 2 - ball_update) / SCREEN_HEIGHT for paddle in paddles]
             return rewards
 
@@ -122,12 +149,13 @@ if __name__ == '__main__':
 
     pool = multiprocessing.Pool(multiprocessing.cpu_count())
     
-    # game tuple takes form (network, paddle_y, score)
+    # starting networks
     games = [NeuralNetwork() for _ in range(NUM_AGENTS)]
     
     for gen in range(GENERATIONS):
-        # for _ in range(TRIALS_PER_GEN):
-        rewards = pool.map(partial(do_trial, games), range(TRIALS_PER_GEN))
+        # get rewards for each network. This will use ALL of your CPU for the duration of the runtime.
+        rewards = pool.map(partial(do_trial, games, gen), range(TRIALS_PER_GEN))
+        # create game_score objects to sort and rank by.
         game_scores = [[game, 0] for game in games]
         for reward in rewards:
             for i in range(len(reward)):
