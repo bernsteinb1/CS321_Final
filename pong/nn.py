@@ -5,7 +5,7 @@ from copy import deepcopy
 import random
 
 INPUT_NODES = 5
-HIDDEN_LAYER_NODES = [4]  # use empty list for no hidden layers
+HIDDEN_LAYER_NODES = [5, 5, 5]  # use empty list for no hidden layers
 OUTPUT_NODES = 2
 
 MUTATION_RATE = .05  # how often a weight or bias is modified when mutation occurs

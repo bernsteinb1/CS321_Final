@@ -22,7 +22,7 @@ BALL_MAX_ANGLE = 75
 PADDLE_SPEED = 3
 
 NUM_AGENTS = 1000  # how many agents to introduce each generation
-GENERATIONS = 50
+GENERATIONS = 70
 SELECT_NUM = 10  # how many agents automatically advance to the next generation without modification. Also impacts number of results printed.
 RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
 TRIALS_PER_GEN = 1000  # how many trials to run each generation 
