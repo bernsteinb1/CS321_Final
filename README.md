@@ -13,7 +13,7 @@ A repository containing code for an AI agent to play Flappy Bird and Pong.
 
 # Miscellaneous files:
 - results.txt
-  - Example output of ai_pong.py when trained. This is not automatically populated when trained, but was created deliberately.
+  - Example output of ai_pong.py when trained. This is not automatically populated when trained, but was created deliberately. The results seen here were cut off after 37 generations because progress had stopped.
 - champion.pickle
   - Contains the best (highest scoring) overall AI player trained from running ai_pong.py.
 - last_gen.pickle

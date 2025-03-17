@@ -22,7 +22,7 @@ BALL_MAX_ANGLE = 75
 PADDLE_SPEED = 3
 
 NUM_AGENTS = 1000  # how many agents to introduce each generation
-GENERATIONS = 70
+GENERATIONS = 50
 SELECT_NUM = 10  # how many agents automatically advance to the next generation without modification. Also impacts number of results printed.
 RANDOM_NETWORKS_PER_GEN = 0  # introduce a number of random networks each generation, this can prevent stagnation
 TRIALS_PER_GEN = 1000  # how many trials to run each generation 
@@ -50,7 +50,7 @@ class Ball:
         self.x_velocity = BALL_START_SPEED * math.cos(angle)
         self.y_velocity = BALL_START_SPEED * math.sin(angle)
 
-    def collision_right(self, gen_num):
+    def collision_right(self):
         """In each trial, right collisions are certain. When it happens it will randomly set the velocity to somewhere
         between -BALL_MAX_ANGLE and BALL_MAX_ANGLE. On even generations, it will always choose either -BALL_MAX_ANGLE or
         BALL_MAX_ANGLE with no intermediate values.
@@ -63,7 +63,7 @@ class Ball:
         self.x = SCREEN_WIDTH - PADDLE_DIST_FROM_EDGE - PADDLE_WIDTH - BALL_RADIUS
         self.y = collision_y
 
-        angle = random.randrange(-BALL_MAX_ANGLE, BALL_MAX_ANGLE) + 180 if gen_num % 2 == 0 else random.choice([-BALL_MAX_ANGLE, BALL_MAX_ANGLE]) + 180
+        angle = random.randrange(-BALL_MAX_ANGLE, BALL_MAX_ANGLE) + 180
         self.x_velocity = math.cos(math.radians(angle)) * BALL_START_SPEED
         self.y_velocity = math.sin(math.radians(angle)) * BALL_START_SPEED
 
@@ -77,7 +77,7 @@ class Ball:
         collision_y = self.y + ball_slope * (PADDLE_DIST_FROM_EDGE + PADDLE_WIDTH + BALL_RADIUS - (self.x - BALL_RADIUS))
         return collision_y
 
-    def update(self, gen_num):
+    def update(self):
         """Moves ball and calls appropriate collision functions. Returns center of ball collision if trial is over.
 
         Args:
@@ -93,7 +93,7 @@ class Ball:
         if (self.x + self.x_velocity + BALL_RADIUS >= right_paddle or self.x + self.x_velocity - BALL_RADIUS <= left_paddle) \
             and self.x + BALL_RADIUS <= right_paddle and self.x - BALL_RADIUS >= left_paddle:
             # see if ball collided or was missed
-            res = self.collision_right(gen_num) if self.x + self.x_velocity + BALL_RADIUS >= right_paddle else self.collision_left()
+            res = self.collision_right() if self.x + self.x_velocity + BALL_RADIUS >= right_paddle else self.collision_left()
             if res is not None:
                 return res
             # how much the ball will have moved when it hits a paddle
@@ -110,7 +110,8 @@ class Ball:
         else:
             self.y = new_y
 
-def do_trial(neural_nets, gen_num, _):
+
+def do_trial(neural_nets, _):
     """_summary_
 
     Args:
@@ -136,7 +137,7 @@ def do_trial(neural_nets, gen_num, _):
                 paddles[i] = max(paddles[i] - PADDLE_SPEED, 0)
             if down > 0 and not up > 0:
                 paddles[i] = min(paddles[i] + PADDLE_SPEED, SCREEN_HEIGHT - PADDLE_HEIGHT)
-        ball_update = ball.update(gen_num)
+        ball_update = ball.update()
         if ball_update is not None:
             # reward closer paddles more heavily
             rewards = [1 - abs(paddle + PADDLE_HEIGHT / 2 - ball_update) / SCREEN_HEIGHT for paddle in paddles]
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     
     for gen in range(GENERATIONS):
         # get rewards for each network. This will use ALL of your CPU for the duration of the runtime.
-        rewards = pool.map(partial(do_trial, games, gen), range(TRIALS_PER_GEN))
+        rewards = pool.map(partial(do_trial, games), range(TRIALS_PER_GEN))
         # create game_score objects to sort and rank by.
         game_scores = [[game, 0] for game in games]
         for reward in rewards:
@@ -165,6 +166,10 @@ if __name__ == '__main__':
         if game_scores[0][1] > best_score:
             best_score = game_scores[0][1]
             best_nn = game_scores[0][0]
+            # save champion
+            with open('champion.pickle', 'wb') as f:
+                pickle.dump(best_nn, f)
+        
         new_games = []
 
         print(f'Generation {gen + 1} results')
@@ -189,9 +194,9 @@ if __name__ == '__main__':
         for i in range(RANDOM_NETWORKS_PER_GEN):
             new_games.append(NeuralNetwork())
         games = new_games
+        # save winner from last generation
+        with open('last_gen.pickle', 'wb') as f:
+            pickle.dump(games[0], f)
 
     pool.close()
-    with open('champion.pickle', 'wb') as f:
-        pickle.dump(best_nn, f)
-    with open('last_gen.pickle', 'wb') as f:
-        pickle.dump(games[0], f)
+    
