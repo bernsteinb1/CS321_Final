@@ -1,5 +1,5 @@
 # Human Playable Pong
-pong.py contains a human playable pong game. By default, the left paddle played by our trained AI, and the right paddle is a human player.
+pong.py contains a human playable pong game. By default, the left paddle is played by our trained AI, and the right paddle is a human player.
 
 To play the game run:
 - `python3 pong.py`
@@ -12,7 +12,7 @@ Controls:
   - up arrow: move up
   - down arrow: move down
 
-If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. Changing any of these variables may affect how the AI performs and further training may be required after these are modified. **Notably**, there is a AI_PLAYER variable. If this variable is True, the left paddle will be played by an AI agent trained by our neural network via neuroevolution. The AI that is played against can be set in the main function by changing the relative path to the desired pickle file. 
+If you would like to customize how the game runs (paddle speed, ball speed, paddle size, etc.), all these variables can be adjusted via the constant variables (upper case) at the top of the file. Changing any of these variables may affect how the AI performs and further training may be required after these are modified. **Notably**, there is an AI_PLAYER variable. If this variable is True, the left paddle will be played by an AI agent trained by our neural network via neuroevolution. The AI that is played against can be set in the main function by changing the relative path to the desired pickle file. 
 
 # AI Pong
 We train Pong AIs by running a series of simulated trials where the ball starts in a random configuration immediately
